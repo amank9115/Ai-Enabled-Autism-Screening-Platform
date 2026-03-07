@@ -84,11 +84,11 @@ const LoginPage = () => {
   const submitPasswordLogin = async () => {
     setLoading(true)
     try {
-      await authApi.loginWithPassword(email, password, role)
-      login(name.trim() || (role === "parent" ? "Parent User" : "Doctor User"), role)
+      const result = await authApi.loginWithPassword(email, password, role, name.trim() || undefined)
+      login(result.user.name, result.user.role)
       setAuthSuccess(true)
       pushToast("success", "Login successful")
-      setTimeout(() => routeAfterAuth(role), 550)
+      setTimeout(() => routeAfterAuth(result.user.role), 550)
     } catch (error) {
       pushToast("error", error instanceof Error ? error.message : "Login failed")
     } finally {
@@ -117,10 +117,16 @@ const LoginPage = () => {
     setLoading(true)
     try {
       await authApi.verifyOtp(otp)
-      login(name.trim() || (role === "parent" ? "Parent User" : "Doctor User"), role)
+      const result = await authApi.loginWithOtp({
+        email: method === "emailOtp" ? email.trim() : undefined,
+        phone: method === "phoneOtp" ? `${countryCode}${phone}` : undefined,
+        role,
+        name: name.trim() || undefined,
+      })
+      login(result.user.name, result.user.role)
       setAuthSuccess(true)
       pushToast("success", "Verification successful")
-      setTimeout(() => routeAfterAuth(role), 550)
+      setTimeout(() => routeAfterAuth(result.user.role), 550)
     } catch (error) {
       pushToast("error", error instanceof Error ? error.message : "Invalid OTP")
     } finally {
@@ -131,13 +137,44 @@ const LoginPage = () => {
   const register = async () => {
     setLoading(true)
     try {
-      await authApi.registerUser({ name, email, phone: `${countryCode}${phone}`, password, confirmPassword, role })
-      login(name, role)
+      const result = await authApi.registerUser({
+        name,
+        email,
+        phone: `${countryCode}${phone}`,
+        password,
+        confirmPassword,
+        role,
+      })
+      login(result.user.name, result.user.role)
       setAuthSuccess(true)
       pushToast("success", "Registration completed")
-      setTimeout(() => routeAfterAuth(role), 550)
+      setTimeout(() => routeAfterAuth(result.user.role), 550)
     } catch (error) {
       pushToast("error", error instanceof Error ? error.message : "Registration failed")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const googleLogin = async () => {
+    if (!email.trim()) {
+      pushToast("error", "Enter your email to continue with Google.")
+      return
+    }
+
+    setLoading(true)
+    try {
+      const result = await authApi.loginWithGoogle({
+        email: email.trim(),
+        name: name.trim() || undefined,
+        role,
+      })
+      login(result.user.name, result.user.role)
+      setAuthSuccess(true)
+      pushToast("success", "Google sign-in successful")
+      setTimeout(() => routeAfterAuth(result.user.role), 550)
+    } catch (error) {
+      pushToast("error", error instanceof Error ? error.message : "Google sign-in failed")
     } finally {
       setLoading(false)
     }
@@ -273,6 +310,12 @@ const LoginPage = () => {
                       >
                         {loading && <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />}
                         {loading ? "Signing in..." : authSuccess ? "Success" : "Sign in securely"}
+                      </button>
+                      <button
+                        onClick={googleLogin}
+                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900/60 dark:text-slate-200"
+                      >
+                        Continue with Google
                       </button>
                     </>
                   )}

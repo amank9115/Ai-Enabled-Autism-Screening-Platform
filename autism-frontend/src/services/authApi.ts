@@ -1,28 +1,51 @@
+﻿import { fetchJson } from "../api/client"
+
 export type AuthRole = "parent" | "doctor"
 export type AuthMethod = "password" | "emailOtp" | "phoneOtp"
 
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+type AuthUser = {
+  id: string
+  name: string
+  role: AuthRole
+  email: string
+}
 
 export const authApi = {
   sendEmailOtp: async (email: string) => {
-    await wait(900)
-    if (!email.includes("@")) throw new Error("Please enter a valid email.")
-    return { success: true, target: email }
+    return fetchJson<{ success: boolean; target: string }>("/auth/email-otp", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    })
   },
   sendPhoneOtp: async (phone: string) => {
-    await wait(900)
-    if (phone.length < 8) throw new Error("Please enter a valid phone number.")
-    return { success: true, target: phone }
+    return fetchJson<{ success: boolean; target: string }>("/auth/phone-otp", {
+      method: "POST",
+      body: JSON.stringify({ phone }),
+    })
   },
   verifyOtp: async (otp: string) => {
-    await wait(850)
-    if (otp.length !== 6) throw new Error("OTP must be 6 digits.")
-    return { success: true }
+    return fetchJson<{ success: boolean }>("/auth/verify-otp", {
+      method: "POST",
+      body: JSON.stringify({ otp }),
+    })
   },
-  loginWithPassword: async (_email: string, password: string, _role: AuthRole) => {
-    await wait(900)
-    if (password.length < 6) throw new Error("Password must be at least 6 characters.")
-    return { success: true }
+  loginWithOtp: async (payload: { email?: string; phone?: string; role: AuthRole; name?: string }) => {
+    return fetchJson<{ success: boolean; user: AuthUser }>("/auth/otp-login", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+  },
+  loginWithPassword: async (email: string, password: string, role: AuthRole, name?: string) => {
+    return fetchJson<{ success: boolean; user: AuthUser }>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password, role, name }),
+    })
+  },
+  loginWithGoogle: async (payload: { email: string; name?: string; role: AuthRole }) => {
+    return fetchJson<{ success: boolean; user: AuthUser }>("/auth/google", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
   },
   registerUser: async (payload: {
     name: string
@@ -32,10 +55,9 @@ export const authApi = {
     confirmPassword: string
     role: AuthRole
   }) => {
-    await wait(1050)
-    if (!payload.name || !payload.email || !payload.phone) throw new Error("Please complete all required fields.")
-    if (payload.password !== payload.confirmPassword) throw new Error("Passwords do not match.")
-    if (payload.password.length < 6) throw new Error("Password must be at least 6 characters.")
-    return { success: true }
+    return fetchJson<{ success: boolean; user: AuthUser }>("/auth/register", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
   },
 }
