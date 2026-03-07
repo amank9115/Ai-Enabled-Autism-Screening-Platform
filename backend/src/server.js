@@ -3,6 +3,7 @@ import cors from "cors"
 import dotenv from "dotenv"
 import express from "express"
 import { nanoid } from "nanoid"
+import { Readable } from "node:stream"
 
 import {
   ChildModel,
@@ -14,11 +15,21 @@ import {
   connectDatabase,
 } from "./db.js"
 import { scoreCameraScreening } from "./ml.js"
+import {
+  aiEngineAnalyzeFrame,
+  aiEngineDoctorCases,
+  aiEngineHealth,
+  aiEngineUploadVideoJson,
+  aiEngineUploadVideoStream,
+  isAiEngineEnabled,
+} from "./aiEngineGateway.js"
 import { scoreWithPythonLive, scoreWithPythonWindow } from "./pythonMlGateway.js"
 
 dotenv.config()
 
 const mongoUri = process.env.MONGODB_URI
+const openAiApiKey = process.env.OPENAI_API_KEY
+const openAiModel = process.env.OPENAI_MODEL || "gpt-4o-mini"
 
 const app = express()
 const port = Number(process.env.PORT || 4000)
@@ -26,6 +37,46 @@ const port = Number(process.env.PORT || 4000)
 const normalizeEmail = (value) => String(value ?? "").trim().toLowerCase()
 const normalizePhone = (value) => String(value ?? "").trim()
 const normalizeText = (value) => String(value ?? "").trim()
+
+const runOpenAiSearch = async (query) => {
+  if (!openAiApiKey) {
+    throw new Error("OPENAI_API_KEY is missing in backend/.env")
+  }
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${openAiApiKey}`,
+    },
+    body: JSON.stringify({
+      model: openAiModel,
+      temperature: 0.2,
+      max_tokens: 280,
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are an autism screening platform assistant. Provide concise, safe, non-diagnostic guidance. Offer practical next steps and avoid medical diagnosis claims.",
+        },
+        { role: "user", content: query },
+      ],
+    }),
+  })
+
+  if (!response.ok) {
+    const raw = await response.text()
+    throw new Error(`OpenAI request failed (${response.status}): ${raw}`)
+  }
+
+  const payload = await response.json()
+  const answer = payload?.choices?.[0]?.message?.content
+  if (!answer || typeof answer !== "string") {
+    throw new Error("OpenAI returned an empty response.")
+  }
+
+  return answer.trim()
+}
 
 app.use(
   cors({
@@ -84,6 +135,86 @@ app.get("/api", (_req, res) => {
 app.get("/api/v1/analysis/live-behavior", (_req, res) => {
   res.json(behaviorTimeline)
 })
+
+app.get(
+  "/api/v1/ai-engine/health",
+  asyncHandler(async (_req, res) => {
+    if (!isAiEngineEnabled()) {
+      res.status(503).json({ success: false, message: "AI engine is disabled. Set AI_ENGINE_ENABLED=true." })
+      return
+    }
+    const payload = await aiEngineHealth()
+    res.json({ success: true, ...payload })
+  }),
+)
+
+app.get(
+  "/api/v1/ai-engine/analyze-frame",
+  asyncHandler(async (_req, res) => {
+    if (!isAiEngineEnabled()) {
+      res.status(503).json({ success: false, message: "AI engine is disabled. Set AI_ENGINE_ENABLED=true." })
+      return
+    }
+    const payload = await aiEngineAnalyzeFrame()
+    res.json({ success: true, ...payload })
+  }),
+)
+
+app.get(
+  "/api/v1/ai-engine/doctor-cases",
+  asyncHandler(async (_req, res) => {
+    if (!isAiEngineEnabled()) {
+      res.status(503).json({ success: false, message: "AI engine is disabled. Set AI_ENGINE_ENABLED=true." })
+      return
+    }
+    const payload = await aiEngineDoctorCases()
+    res.json({ success: true, cases: payload })
+  }),
+)
+
+app.post(
+  "/api/v1/ai-engine/upload-video",
+  asyncHandler(async (req, res) => {
+    if (!isAiEngineEnabled()) {
+      res.status(503).json({ success: false, message: "AI engine is disabled. Set AI_ENGINE_ENABLED=true." })
+      return
+    }
+
+    const contentType = String(req.headers["content-type"] || "")
+    if (contentType.includes("multipart/form-data")) {
+      const payload = await aiEngineUploadVideoStream({
+        contentType,
+        contentLength: req.headers["content-length"],
+        body: Readable.toWeb(req),
+      })
+      res.json({ success: true, ...payload })
+      return
+    }
+
+    const payload = await aiEngineUploadVideoJson(req.body ?? {})
+    res.json({ success: true, ...payload })
+  }),
+)
+
+app.post(
+  "/api/v1/assistant/search",
+  asyncHandler(async (req, res) => {
+    const query = normalizeText(req.body?.query)
+    if (!query || query.length < 2) {
+      res.status(400).json({ success: false, message: "Search query must be at least 2 characters." })
+      return
+    }
+
+    const answer = await runOpenAiSearch(query)
+    res.json({
+      success: true,
+      query,
+      answer,
+      model: openAiModel,
+      policy: "Information support only. Not a medical diagnosis.",
+    })
+  }),
+)
 
 app.get("/api/v1/analysis/emotion-timeline", (_req, res) => {
   res.json(emotionTimeline)
@@ -326,70 +457,6 @@ app.post("/api/v1/ml/inference", (req, res) => {
     ],
   })
 })
-
-app.post("/api/v1/auth/email-otp", (req, res) => {
-  const email = normalizeEmail(req.body?.email)
-  if (!email || !email.includes("@")) {
-    res.status(400).json({ success: false, message: "Please enter a valid email." })
-    return
-  }
-  res.json({ success: true, target: email })
-})
-
-app.post("/api/v1/auth/phone-otp", (req, res) => {
-  const { phone } = req.body ?? {}
-  if (typeof phone !== "string" || phone.length < 8) {
-    res.status(400).json({ success: false, message: "Please enter a valid phone number." })
-    return
-  }
-  res.json({ success: true, target: phone })
-})
-
-app.post("/api/v1/auth/verify-otp", (req, res) => {
-  const { otp } = req.body ?? {}
-  if (typeof otp !== "string" || otp.length !== 6) {
-    res.status(400).json({ success: false, message: "OTP must be 6 digits." })
-    return
-  }
-  res.json({ success: true })
-})
-
-app.post(
-  "/api/v1/auth/otp-login",
-  asyncHandler(async (req, res) => {
-    const { role, name } = req.body ?? {}
-    const email = normalizeEmail(req.body?.email)
-    const phone = normalizePhone(req.body?.phone)
-    if (!role || (!email && !phone)) {
-      res.status(400).json({ success: false, message: "Role and email or phone are required." })
-      return
-    }
-
-    const query = email ? { email, role } : { phone, role }
-    const safeName = typeof name === "string" && name.trim() ? name.trim() : email ? String(email).split("@")[0] : "User"
-    let user = await UserModel.findOne(query)
-
-    if (!user) {
-      user = await UserModel.create({
-        id: `u-${nanoid(10)}`,
-        name: safeName,
-        email: email ?? `${nanoid(8)}@otp.local`,
-        phone: phone ?? "0000000000",
-        passwordHash: bcrypt.hashSync(nanoid(24), 10),
-        role,
-        provider: "otp",
-      })
-    } else if (!user.name && safeName) {
-      user.name = safeName
-      await user.save()
-    }
-
-    res.json({
-      success: true,
-      user: { id: user.id, name: user.name, role: user.role, email: user.email },
-    })
-  }),
-)
 
 app.post(
   "/api/v1/auth/login",

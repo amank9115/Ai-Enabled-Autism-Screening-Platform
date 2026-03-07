@@ -5,6 +5,7 @@ import AppShell from "../layout/AppShell"
 
 const LandingPage = lazy(() => import("../pages/LandingPage"))
 const LoginPage = lazy(() => import("../pages/LoginPage"))
+const DemoDashboardPage = lazy(() => import("../pages/DemoDashboardPage"))
 const LiveScreeningPage = lazy(() => import("../pages/LiveScreeningPage"))
 const ChildProfilePage = lazy(() => import("../pages/ChildProfilePage"))
 const ParentDashboardPage = lazy(() => import("../pages/ParentDashboardPage"))
@@ -29,6 +30,8 @@ const AppRouter = () => {
           <Route element={<AppShell />}>
             <Route path="/" element={<LandingPage />} />
             <Route path="/auth" element={<LoginPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/demo" element={<DemoDashboardPage />} />
             <Route
               path="/child-profile"
               element={

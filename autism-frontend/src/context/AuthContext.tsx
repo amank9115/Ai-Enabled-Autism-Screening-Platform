@@ -8,10 +8,13 @@ type User = {
 }
 
 const AUTH_STORAGE_KEY = "manassaathi-auth-user"
+const GUEST_STORAGE_KEY = "manassaathi-guest-mode"
 
 type AuthContextValue = {
   user: User | null
+  isGuest: boolean
   login: (name: string, role: UserRole) => void
+  enterGuestMode: () => void
   logout: () => void
 }
 
@@ -29,21 +32,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return null
     }
   })
+  const [isGuest, setIsGuest] = useState<boolean>(() => localStorage.getItem(GUEST_STORAGE_KEY) === "true")
 
   const value = useMemo(
     () => ({
       user,
+      isGuest,
       login: (name: string, role: UserRole) => {
         const nextUser = { name, role }
         setUser(nextUser)
+        setIsGuest(false)
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextUser))
+        localStorage.removeItem(GUEST_STORAGE_KEY)
+      },
+      enterGuestMode: () => {
+        setUser({ name: "Guest User", role: "parent" })
+        setIsGuest(true)
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ name: "Guest User", role: "parent" }))
+        localStorage.setItem(GUEST_STORAGE_KEY, "true")
       },
       logout: () => {
         setUser(null)
+        setIsGuest(false)
         localStorage.removeItem(AUTH_STORAGE_KEY)
+        localStorage.removeItem(GUEST_STORAGE_KEY)
       },
     }),
-    [user],
+    [isGuest, user],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

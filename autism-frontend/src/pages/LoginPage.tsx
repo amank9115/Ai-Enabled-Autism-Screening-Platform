@@ -1,13 +1,11 @@
 import { AnimatePresence, motion, useMotionValue, useSpring } from "framer-motion"
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
-import AuthMethodTabs from "../components/auth/AuthMethodTabs"
-import OtpInput from "../components/auth/OtpInput"
 import RoleToggle from "../components/auth/RoleToggle"
+import GuestDemoButton from "../components/guest/GuestDemoButton"
 import ToastStack, { type ToastItem } from "../components/ui/ToastStack"
 import { useAuth } from "../context/AuthContext"
-import { useOtpAuth } from "../hooks/useOtpAuth"
-import { authApi, type AuthMethod, type AuthRole } from "../services/authApi"
+import { authApi, type AuthRole } from "../services/authApi"
 
 type Mode = "login" | "register"
 
@@ -47,12 +45,11 @@ const EyeFollowFace = ({ eyeX, eyeY, protect }: { eyeX: ReturnType<typeof useSpr
 
 const LoginPage = () => {
   const navigate = useNavigate()
-  const { login } = useAuth()
+  const { login, enterGuestMode } = useAuth()
   const [searchParams] = useSearchParams()
   const initialMode: Mode = searchParams.get("mode") === "register" ? "register" : "login"
 
   const [mode, setMode] = useState<Mode>(initialMode)
-  const [method, setMethod] = useState<AuthMethod>("password")
   const [role, setRole] = useState<AuthRole>("parent")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -76,8 +73,6 @@ const LoginPage = () => {
   const eyeYRaw = useMotionValue(0)
   const eyeX = useSpring(eyeXRaw, { stiffness: 230, damping: 24 })
   const eyeY = useSpring(eyeYRaw, { stiffness: 230, damping: 24 })
-
-  const { otp, otpSent, otpValues, timer, canResend, setOtpValues, startOtp, resetOtp } = useOtpAuth()
 
   useEffect(() => {
     let raf = 0
@@ -164,48 +159,10 @@ const LoginPage = () => {
     }
   }
 
-  const sendOtp = async () => {
+  const registerUser = async () => {
     setLoading(true)
     try {
-      if (method === "emailOtp") {
-        await authApi.sendEmailOtp(email)
-      } else {
-        await authApi.sendPhoneOtp(`${countryCode}${phone}`)
-      }
-      startOtp()
-      pushToast("info", "OTP sent")
-    } catch (error) {
-      pushToast("error", error instanceof Error ? error.message : "Unable to send OTP")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const verifyOtpLogin = async () => {
-    setLoading(true)
-    try {
-      await authApi.verifyOtp(otp)
-      const result = await authApi.loginWithOtp({
-        email: method === "emailOtp" ? email.trim() : undefined,
-        phone: method === "phoneOtp" ? `${countryCode}${phone}` : undefined,
-        role,
-        name: name.trim() || undefined,
-      })
-      login(result.user.name, result.user.role)
-      setAuthSuccess(true)
-      pushToast("success", "Verification successful")
-      setTimeout(() => routeAfterAuth(result.user.role), 550)
-    } catch (error) {
-      pushToast("error", error instanceof Error ? error.message : "OTP verification failed")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const register = async () => {
-    setLoading(true)
-    try {
-      const result = await authApi.registerUser({
+      await authApi.registerUser({
         name,
         email,
         phone: `${countryCode}${phone}`,
@@ -213,10 +170,9 @@ const LoginPage = () => {
         confirmPassword,
         role,
       })
-      login(result.user.name, result.user.role)
       setAuthSuccess(true)
-      pushToast("success", "Registration completed")
-      setTimeout(() => routeAfterAuth(result.user.role), 550)
+      pushToast("success", "Registration completed. Please login.")
+      setMode("login")
     } catch (error) {
       pushToast("error", error instanceof Error ? error.message : "Registration failed")
     } finally {
@@ -224,29 +180,18 @@ const LoginPage = () => {
     }
   }
 
-  const onMethodChange = (nextMethod: AuthMethod) => {
-    setMethod(nextMethod)
-    resetOtp()
-  }
-
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (mode === "register") {
-      void register()
+      void registerUser()
       return
     }
+    void submitPasswordLogin()
+  }
 
-    if (method === "password") {
-      void submitPasswordLogin()
-      return
-    }
-
-    if (!otpSent) {
-      void sendOtp()
-      return
-    }
-
-    void verifyOtpLogin()
+  const enterDemo = () => {
+    enterGuestMode()
+    navigate("/demo")
   }
 
   return (
@@ -269,7 +214,7 @@ const LoginPage = () => {
 
             <p className="text-xs tracking-[0.2em] text-sky-600 uppercase">AI Behavioral Care</p>
             <h1 className="mt-2 max-w-md text-4xl font-semibold text-slate-800">Secure onboarding for early autism support.</h1>
-            <p className="mt-3 max-w-md text-sm text-slate-600">Email/password, Google sign-in, and OTP login are supported.</p>
+            <p className="mt-3 max-w-md text-sm text-slate-600">Email/password and Google sign-in are supported.</p>
 
             <div className="mt-6">
               <EyeFollowFace eyeX={eyeX} eyeY={eyeY} protect={passwordTyping} />
@@ -299,101 +244,43 @@ const LoginPage = () => {
               <AnimatePresence mode="wait">
                 {mode === "login" ? (
                   <motion.div key="login" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-3">
-                    <AuthMethodTabs value={method} onChange={onMethodChange} />
-
                     <input
                       value={name}
                       onChange={(event) => setName(event.target.value)}
                       placeholder="Display name (optional)"
                       className="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-300/40"
                     />
-
-                    {method === "emailOtp" ? (
-                      <input
-                        value={email}
-                        onChange={(event) => setEmail(event.target.value)}
-                        placeholder="Email"
-                        className="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-300/40"
-                      />
-                    ) : method === "phoneOtp" ? (
-                      <div className="flex gap-2">
-                        <select
-                          value={countryCode}
-                          onChange={(event) => setCountryCode(event.target.value)}
-                          className="rounded-xl border border-slate-300 bg-white/80 px-2 text-sm text-slate-700 outline-none"
-                        >
-                          <option value="+91">+91</option>
-                          <option value="+1">+1</option>
-                          <option value="+44">+44</option>
-                        </select>
-                        <input
-                          value={phone}
-                          onChange={(event) => setPhone(event.target.value.replace(/\D/g, ""))}
-                          placeholder="Phone number"
-                          className="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-300/40"
-                        />
-                      </div>
-                    ) : (
-                      <>
-                        <input
-                          value={email}
-                          onChange={(event) => setEmail(event.target.value)}
-                          placeholder="Email"
-                          className="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-300/40"
-                        />
-                        <input
-                          type="password"
-                          value={password}
-                          onChange={(event) => {
-                            setPassword(event.target.value)
-                            markTyping()
-                          }}
-                          placeholder="Password"
-                          className="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-300/40"
-                        />
-                      </>
-                    )}
-
-                    {method !== "password" && otpSent && (
-                      <div className="space-y-3">
-                        <OtpInput values={otpValues} onChange={setOtpValues} />
-                        <div className="flex items-center justify-between text-xs text-slate-500">
-                          <span>{canResend ? "You can resend OTP now" : `Resend OTP in ${timer}s`}</span>
-                          <button type="button" disabled={!canResend || loading} onClick={() => void sendOtp()} className="font-semibold text-sky-600 disabled:opacity-40">
-                            Resend
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                    <input
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      placeholder="Email"
+                      className="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-300/40"
+                    />
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(event) => {
+                        setPassword(event.target.value)
+                        markTyping()
+                      }}
+                      placeholder="Password"
+                      className="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-300/40"
+                    />
 
                     <button type="submit" className="group flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-emerald-500 px-4 py-2 text-sm font-semibold text-white transition hover:shadow-lg hover:shadow-sky-500/25">
                       {loading && <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />}
-                      {method === "password"
-                        ? loading
-                          ? "Signing in..."
-                          : authSuccess
-                            ? "Success"
-                            : "Sign in securely"
-                        : !otpSent
-                          ? loading
-                            ? "Sending OTP..."
-                            : "Send OTP"
-                          : loading
-                            ? "Verifying..."
-                            : authSuccess
-                              ? "Success"
-                              : "Verify and continue"}
+                      {loading ? "Signing in..." : authSuccess ? "Success" : "Sign in securely"}
                     </button>
 
-                    {method === "password" && (
-                      <button
-                        type="button"
-                        onClick={() => void googleLogin()}
-                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                      >
-                        Continue with Google
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => void googleLogin()}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                    >
+                      Continue with Google
+                    </button>
+
+                    <GuestDemoButton onClick={enterDemo} className="w-full" />
                   </motion.div>
                 ) : (
                   <motion.div key="register" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-3">
@@ -448,7 +335,7 @@ const LoginPage = () => {
                     />
                     <button type="submit" className="group flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-emerald-500 px-4 py-2 text-sm font-semibold text-white transition hover:shadow-lg hover:shadow-sky-500/25">
                       {loading && <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />}
-                      {loading ? "Creating account..." : authSuccess ? "Success" : "Create secure account"}
+                      {loading ? "Creating account..." : authSuccess ? "Success" : "Create account"}
                     </button>
                   </motion.div>
                 )}

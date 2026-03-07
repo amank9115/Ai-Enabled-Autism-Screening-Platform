@@ -23,6 +23,13 @@ const AIAgentChat = () => {
     setInput("")
   }
 
+  const onInputKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault()
+      sendMessage()
+    }
+  }
+
   return (
     <div className="rounded-2xl border border-slate-200/70 bg-white/75 p-4 dark:border-slate-700 dark:bg-slate-900/60">
       <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-100">AI Support Agent</h3>
@@ -41,10 +48,12 @@ const AIAgentChat = () => {
         ))}
       </div>
       <div className="mt-3 flex gap-2">
-        <input
+        <textarea
           value={input}
           onChange={(event) => setInput(event.target.value)}
-          className="flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200"
+          onKeyDown={onInputKeyDown}
+          rows={1}
+          className="flex-1 resize-none rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200"
           placeholder="Ask the assistant..."
         />
         <button onClick={sendMessage} className="rounded-xl bg-sky-500 px-3 py-2 text-xs font-semibold text-white">

@@ -1,32 +1,14 @@
 ﻿import { motion, useMotionTemplate, useMotionValue, useSpring } from "framer-motion"
 import { useEffect, useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
+import GuestDemoButton from "../components/guest/GuestDemoButton"
+import { useAuth } from "../context/AuthContext"
 
 const story = [
-  {
-    id: "problem",
-    title: "The Problem",
-    phrase: "Early signs are easy to miss.",
-    image: "/illustrations/problem.png",
-  },
-  {
-    id: "technology",
-    title: "AI Technology",
-    phrase: "AI reads behavior patterns in minutes.",
-    image: "/illustrations/technology.png",
-  },
-  {
-    id: "features",
-    title: "Platform Features",
-    phrase: "Live screening, reports, and shared care.",
-    image: "/illustrations/features.png",
-  },
-  {
-    id: "impact",
-    title: "Impact",
-    phrase: "Detect early. Support better.",
-    image: "/illustrations/impact.png",
-  },
+  { id: "problem", title: "The Problem", phrase: "Early signs are easy to miss.", image: "/illustrations/problem.png" },
+  { id: "technology", title: "AI Technology", phrase: "AI reads behavior patterns in minutes.", image: "/illustrations/technology.png" },
+  { id: "features", title: "Platform Features", phrase: "Live screening, reports, and shared care.", image: "/illustrations/features.png" },
+  { id: "impact", title: "Impact", phrase: "Detect early. Support better.", image: "/illustrations/impact.png" },
 ]
 
 const highlights = [
@@ -42,6 +24,8 @@ const steps = [
 ]
 
 const LandingPage = () => {
+  const { user, enterGuestMode } = useAuth()
+  const navigate = useNavigate()
   const cursorX = useMotionValue(0)
   const cursorY = useMotionValue(0)
   const smoothX = useSpring(cursorX, { stiffness: 120, damping: 20 })
@@ -61,6 +45,21 @@ const LandingPage = () => {
 
     return () => clearInterval(timer)
   }, [])
+
+  const startScreening = (event?: React.MouseEvent<HTMLButtonElement>) => {
+    event?.preventDefault()
+    event?.stopPropagation()
+    if (user) {
+      navigate("/live-screening")
+      return
+    }
+    navigate("/login")
+  }
+
+  const startGuestDemo = () => {
+    enterGuestMode()
+    navigate("/demo")
+  }
 
   return (
     <section className="mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8">
@@ -85,7 +84,8 @@ const LandingPage = () => {
           <p className="mt-4 max-w-xl text-sm text-slate-600 dark:text-slate-300">AI-powered early autism screening for parents and doctors.</p>
           <div className="mt-6 flex flex-wrap gap-3">
             <motion.button
-              onClick={() => document.getElementById("problem")?.scrollIntoView({ behavior: "smooth" })}
+              type="button"
+              onClick={startScreening}
               whileHover={{ scale: 1.03, boxShadow: "0 14px 28px rgba(14,165,233,0.32)" }}
               whileTap={{ scale: 0.98 }}
               className="group inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-emerald-500 px-4 py-2 text-sm font-semibold text-white"
@@ -94,63 +94,32 @@ const LandingPage = () => {
               <span className="transition-transform group-hover:translate-x-1">{"->"}</span>
             </motion.button>
             <Link
-              to="/auth"
+              to="/login"
               className="rounded-xl border border-slate-300 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-700 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100"
             >
-              Explore Platform
+              Login
             </Link>
+            <GuestDemoButton onClick={startGuestDemo} />
           </div>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            <motion.div
-              animate={{ y: [0, -6, 0] }}
-              transition={{ duration: 4.2, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
-              className="rounded-xl border border-slate-200/70 bg-white/70 p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900/55"
-            >
+            <motion.div animate={{ y: [0, -6, 0] }} transition={{ duration: 4.2, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }} className="rounded-xl border border-slate-200/70 bg-white/70 p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900/55">
               <p className="text-xs text-slate-500 dark:text-slate-300">AI Brain Scan</p>
               <p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-100">Neural signal sync active</p>
             </motion.div>
-            <motion.div
-              animate={{ y: [0, 6, 0] }}
-              transition={{ duration: 4.7, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
-              className="rounded-xl border border-slate-200/70 bg-white/70 p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900/55"
-            >
+            <motion.div animate={{ y: [0, 6, 0] }} transition={{ duration: 4.7, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }} className="rounded-xl border border-slate-200/70 bg-white/70 p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900/55">
               <p className="text-xs text-slate-500 dark:text-slate-300">Live Detection</p>
               <p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-100">Metrics update every 2s</p>
             </motion.div>
           </div>
         </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.5 }}
-          className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white/80 p-5 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/55"
-        >
-          <motion.div
-            animate={{ rotate: [0, 360] }}
-            transition={{ duration: 26, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
-            className="pointer-events-none absolute -left-6 -top-6 h-20 w-20 rounded-full border border-cyan-400/40"
-          />
-          <motion.div
-            animate={{ scale: [1, 1.06, 1], opacity: [0.45, 0.85, 0.45] }}
-            transition={{ duration: 3.5, repeat: Number.POSITIVE_INFINITY }}
-            className="pointer-events-none absolute right-4 top-4 h-3 w-3 rounded-full bg-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.7)]"
-          />
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.5 }} className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white/80 p-5 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/55">
+          <motion.div animate={{ rotate: [0, 360] }} transition={{ duration: 26, repeat: Number.POSITIVE_INFINITY, ease: "linear" }} className="pointer-events-none absolute -left-6 -top-6 h-20 w-20 rounded-full border border-cyan-400/40" />
+          <motion.div animate={{ scale: [1, 1.06, 1], opacity: [0.45, 0.85, 0.45] }} transition={{ duration: 3.5, repeat: Number.POSITIVE_INFINITY }} className="pointer-events-none absolute right-4 top-4 h-3 w-3 rounded-full bg-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.7)]" />
 
-          <motion.img
-            src="/illustrations/hero.png"
-            alt="AI assisted autism screening"
-            loading="lazy"
-            animate={{ y: [0, -8, 0] }}
-            transition={{ duration: 8, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
-            className="h-64 w-full rounded-2xl border border-slate-200/70 bg-slate-50 object-contain p-2 dark:border-slate-700/70 dark:bg-slate-900/60"
-          />
-          <motion.div
-            animate={{ x: [0, 8, 0], y: [0, -5, 0] }}
-            transition={{ duration: 4, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
-            className="absolute left-1/2 top-1/2 h-28 w-24 -translate-x-1/2 -translate-y-1/2 rounded-lg border-2 border-cyan-400/80 shadow-[0_0_24px_rgba(34,211,238,0.45)]"
-          >
+          <motion.img src="/illustrations/hero.png" alt="AI assisted autism screening" loading="lazy" animate={{ y: [0, -8, 0] }} transition={{ duration: 8, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }} className="h-64 w-full rounded-2xl border border-slate-200/70 bg-slate-50 object-contain p-2 dark:border-slate-700/70 dark:bg-slate-900/60" />
+          <motion.div animate={{ x: [0, 8, 0], y: [0, -5, 0] }} transition={{ duration: 4, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }} className="absolute left-1/2 top-1/2 h-28 w-24 -translate-x-1/2 -translate-y-1/2 rounded-lg border-2 border-cyan-400/80 shadow-[0_0_24px_rgba(34,211,238,0.45)]">
             <span className="absolute -top-5 left-0 rounded bg-cyan-500/80 px-1.5 py-0.5 text-[10px] font-semibold text-white">Face Detected</span>
           </motion.div>
 
@@ -158,37 +127,14 @@ const LandingPage = () => {
           <div className="pointer-events-none absolute left-[48%] top-[47%] h-12 w-12 rounded-full bg-emerald-400/20 blur-xl" />
           <div className="pointer-events-none absolute left-[58%] top-[54%] h-20 w-20 rounded-full bg-indigo-400/20 blur-xl" />
 
-          <div className="absolute right-8 bottom-8 rounded-xl border border-white/40 bg-slate-950/70 px-3 py-2 text-xs text-cyan-100">
-            Eye Contact {heroMetrics.eyeContact}% | Attention {heroMetrics.attention}% | Emotion {heroMetrics.emotion}%
-          </div>
-          <div className="absolute left-8 top-8 rounded-xl border border-sky-200/40 bg-white/70 px-3 py-2 text-[11px] text-slate-700 dark:bg-slate-900/65 dark:text-slate-200">
-            AI Detection Overlay Live
-          </div>
-
-          <motion.div
-            animate={{ y: [0, -4, 0] }}
-            transition={{ duration: 3.6, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
-            className="absolute -left-2 bottom-10 w-52 rounded-2xl border border-slate-200/80 bg-white/90 p-3 text-xs shadow-lg dark:border-slate-700 dark:bg-slate-900/80"
-          >
-            <p className="mb-2 font-semibold text-slate-700 dark:text-slate-100">Live ML Inference</p>
-            <p className="text-slate-600 dark:text-slate-300">Eye Contact: {heroMetrics.eyeContact}%</p>
-            <p className="text-slate-600 dark:text-slate-300">Attention Level: {heroMetrics.attention}%</p>
-            <p className="text-slate-600 dark:text-slate-300">Emotion Stability: {heroMetrics.emotion}%</p>
-          </motion.div>
+          <div className="absolute right-8 bottom-8 rounded-xl border border-white/40 bg-slate-950/70 px-3 py-2 text-xs text-cyan-100">Eye Contact {heroMetrics.eyeContact}% | Attention {heroMetrics.attention}% | Emotion {heroMetrics.emotion}%</div>
+          <div className="absolute left-8 top-8 rounded-xl border border-sky-200/40 bg-white/70 px-3 py-2 text-[11px] text-slate-700 dark:bg-slate-900/65 dark:text-slate-200">AI Detection Overlay Live</div>
         </motion.div>
       </header>
 
       <div className="space-y-10">
         {story.map((section, index) => (
-          <motion.article
-            key={section.id}
-            id={section.id}
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.45 }}
-            transition={{ delay: index * 0.05, duration: 0.5 }}
-            className="grid overflow-hidden rounded-3xl border border-slate-200/80 bg-white/80 backdrop-blur-xl md:grid-cols-[1fr_0.45fr] dark:border-slate-700 dark:bg-slate-900/55"
-          >
+          <motion.article key={section.id} id={section.id} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.45 }} transition={{ delay: index * 0.05, duration: 0.5 }} className="grid overflow-hidden rounded-3xl border border-slate-200/80 bg-white/80 backdrop-blur-xl md:grid-cols-[1fr_0.45fr] dark:border-slate-700 dark:bg-slate-900/55">
             <div className="p-8">
               <p className="text-xs tracking-[0.2em] text-sky-600 uppercase dark:text-sky-300">{section.title}</p>
               <h2 className="mt-2 text-3xl font-semibold text-slate-900 dark:text-slate-100 sm:text-4xl">{section.phrase}</h2>
@@ -202,20 +148,12 @@ const LandingPage = () => {
         ))}
       </div>
 
-      <motion.section
-        initial={{ opacity: 0, y: 24 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.35 }}
-        className="mt-12 rounded-3xl border border-slate-200/80 bg-white/85 p-8 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/60"
-      >
+      <motion.section initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.35 }} className="mt-12 rounded-3xl border border-slate-200/80 bg-white/85 p-8 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/60">
         <p className="text-xs tracking-[0.2em] text-sky-600 uppercase dark:text-sky-300">Key Benefits</p>
         <h3 className="mt-2 text-3xl font-semibold text-slate-900 dark:text-slate-100">Built for real-world early screening workflows.</h3>
         <div className="mt-6 grid gap-4 md:grid-cols-3">
           {highlights.map((item) => (
-            <article
-              key={item.label}
-              className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/70"
-            >
+            <article key={item.label} className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
               <p className="text-xs tracking-[0.16em] text-sky-600 uppercase dark:text-sky-300">{item.label}</p>
               <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-slate-100">{item.value}</p>
               <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{item.detail}</p>
@@ -224,12 +162,7 @@ const LandingPage = () => {
         </div>
       </motion.section>
 
-      <motion.section
-        initial={{ opacity: 0, y: 24 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.35 }}
-        className="mt-10 rounded-3xl border border-slate-200/80 bg-white/85 p-8 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/60"
-      >
+      <motion.section initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.35 }} className="mt-10 rounded-3xl border border-slate-200/80 bg-white/85 p-8 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/60">
         <p className="text-xs tracking-[0.2em] text-sky-600 uppercase dark:text-sky-300">How It Works</p>
         <div className="mt-5 grid gap-4 md:grid-cols-3">
           {steps.map((step, index) => (
@@ -242,24 +175,12 @@ const LandingPage = () => {
         </div>
       </motion.section>
 
-      <motion.section
-        initial={{ opacity: 0, y: 25 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.45 }}
-        className="mt-12 rounded-3xl border border-slate-200/80 bg-white/85 p-8 text-center backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/60"
-      >
+      <motion.section initial={{ opacity: 0, y: 25 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.45 }} className="mt-12 rounded-3xl border border-slate-200/80 bg-white/85 p-8 text-center backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/60">
         <p className="text-xs tracking-[0.2em] text-sky-600 uppercase dark:text-sky-300">Next Step</p>
         <h3 className="mt-2 text-3xl font-semibold text-slate-900 dark:text-slate-100">Start your early screening journey today.</h3>
         <div className="mt-5 flex flex-wrap justify-center gap-3">
-          <Link to="/auth" className="rounded-xl bg-gradient-to-r from-sky-500 to-emerald-500 px-4 py-2 text-sm font-semibold text-white">
-            Create Account
-          </Link>
-          <Link
-            to="/live-screening"
-            className="rounded-xl border border-slate-300 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-700 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100"
-          >
-            Explore Demo
-          </Link>
+          <Link to="/login" className="rounded-xl bg-gradient-to-r from-sky-500 to-emerald-500 px-4 py-2 text-sm font-semibold text-white">Create Account</Link>
+          <GuestDemoButton onClick={startGuestDemo} />
         </div>
       </motion.section>
     </section>

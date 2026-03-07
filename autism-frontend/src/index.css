@@ -37,6 +37,18 @@ h4 {
   font-family: "Sora", "Segoe UI", sans-serif;
 }
 
+button {
+  transition: transform 0.2s ease, box-shadow 0.25s ease, filter 0.25s ease;
+}
+
+button:hover {
+  filter: saturate(1.05);
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
 @media (pointer: fine) {
   body {
     cursor: none;

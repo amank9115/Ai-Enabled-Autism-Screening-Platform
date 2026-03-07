@@ -1,7 +1,6 @@
 import { fetchJson } from "../api/client"
 
 export type AuthRole = "parent" | "doctor"
-export type AuthMethod = "password" | "emailOtp" | "phoneOtp"
 
 type AuthUser = {
   id: string
@@ -11,30 +10,6 @@ type AuthUser = {
 }
 
 export const authApi = {
-  sendEmailOtp: async (email: string) => {
-    return fetchJson<{ success: boolean; target: string }>("/auth/email-otp", {
-      method: "POST",
-      body: JSON.stringify({ email }),
-    })
-  },
-  sendPhoneOtp: async (phone: string) => {
-    return fetchJson<{ success: boolean; target: string }>("/auth/phone-otp", {
-      method: "POST",
-      body: JSON.stringify({ phone }),
-    })
-  },
-  verifyOtp: async (otp: string) => {
-    return fetchJson<{ success: boolean }>("/auth/verify-otp", {
-      method: "POST",
-      body: JSON.stringify({ otp }),
-    })
-  },
-  loginWithOtp: async (payload: { email?: string; phone?: string; role: AuthRole; name?: string }) => {
-    return fetchJson<{ success: boolean; user: AuthUser }>("/auth/otp-login", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    })
-  },
   loginWithPassword: async (email: string, password: string, role: AuthRole, name?: string) => {
     return fetchJson<{ success: boolean; user: AuthUser }>("/auth/login", {
       method: "POST",
