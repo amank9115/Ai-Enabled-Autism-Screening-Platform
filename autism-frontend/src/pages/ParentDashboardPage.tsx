@@ -1,76 +1,85 @@
-import { useEffect, useState } from "react"
+import AIAgentChat from "../components/chat/AIAgentChat"
 import BehaviorRadarChart from "../components/charts/BehaviorRadarChart"
 import EmotionTimelineChart from "../components/charts/EmotionTimelineChart"
 import RiskIndicatorMeter from "../components/charts/RiskIndicatorMeter"
 import WeeklyProgressChart from "../components/charts/WeeklyProgressChart"
 import GlassCard from "../components/ui/GlassCard"
-import { analysisApi } from "../services/api/analysisApi"
-import type { EmotionPoint, WeeklyProgress } from "../types"
+import { emotionTimeline, weeklyProgress } from "../services/mock/dataset"
+
+const doctorRecommendations = [
+  {
+    name: "Dr. Kavya Menon",
+    rating: 4.9,
+    location: "Indiranagar, 2.1 km",
+    specialty: "Pediatric Neurodevelopment",
+    photo: "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=180&q=80",
+  },
+  {
+    name: "Dr. Arjun Bhat",
+    rating: 4.8,
+    location: "HSR Layout, 3.5 km",
+    specialty: "Behavior Therapy Specialist",
+    photo: "https://images.unsplash.com/photo-1612531385446-f7b6b1b8f5f2?auto=format&fit=crop&w=180&q=80",
+  },
+  {
+    name: "Dr. Nidhi Rao",
+    rating: 4.7,
+    location: "Jayanagar, 4.2 km",
+    specialty: "Child Psychiatry",
+    photo: "https://images.unsplash.com/photo-1594824476967-48c8b964273f?auto=format&fit=crop&w=180&q=80",
+  },
+]
 
 const ParentDashboardPage = () => {
-  const [emotionData, setEmotionData] = useState<EmotionPoint[]>([])
-  const [weeklyData, setWeeklyData] = useState<WeeklyProgress[]>([])
-
-  useEffect(() => {
-    const load = async () => {
-      const [emotion, weekly] = await Promise.all([
-        analysisApi.getEmotionTimeline(),
-        analysisApi.getWeeklyProgress(),
-      ])
-      setEmotionData(emotion)
-      setWeeklyData(weekly)
-    }
-    void load()
-  }, [])
-
   return (
     <section className="mx-auto max-w-7xl space-y-4 px-4 py-8 sm:px-6 lg:px-8">
       <header>
-        <h1 className="text-3xl font-semibold text-white">Parent Care Dashboard</h1>
-        <p className="mt-2 text-sm text-slate-300">
-          Upload videos, run AI screening sessions, track development, and share clinician-ready reports.
-        </p>
+        <h1 className="text-3xl font-semibold text-slate-800 dark:text-slate-100">Parent Dashboard</h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">Live screening, progress tracking, nearby specialists, and AI support in one place.</p>
       </header>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <GlassCard title="Upload Behavior Video" subtitle="Secure home-session intake">
-          <input
-            type="file"
-            accept="video/*"
-            className="block w-full rounded-xl border border-white/15 bg-slate-950/70 p-2 text-sm text-slate-300"
-          />
-          <button className="mt-3 w-full rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 px-4 py-2 text-sm font-semibold text-slate-950">
-            Run AI Screening Session
-          </button>
+        <GlassCard title="Live Screening">
+          <p className="text-sm text-slate-600 dark:text-slate-300">Run a camera-based session and get live behavioral overlays.</p>
+          <a href="/live-screening" className="mt-3 inline-block rounded-lg bg-sky-500 px-3 py-2 text-xs font-semibold text-white">Start session</a>
         </GlassCard>
-        <GlassCard title="Weekly Report" subtitle="Simple signal summary for families">
-          <p className="text-sm text-slate-300">Engagement improved by 6% this week. Recommended: more turn-taking play and imitation tasks.</p>
-          <div className="mt-3 rounded-lg bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">Risk level trend: Moderating</div>
+        <GlassCard title="Therapy Tracking">
+          <p className="text-sm text-slate-600 dark:text-slate-300">4 sessions completed this week. Consistency score 82%.</p>
         </GlassCard>
-        <GlassCard title="Share with Clinician" subtitle="Send structured report package">
-          <textarea
-            className="h-28 w-full rounded-xl border border-white/15 bg-slate-950/70 p-2 text-sm text-slate-300"
-            defaultValue="Please review week 5 behavior report before our Tuesday consultation."
-          />
-          <button className="mt-3 w-full rounded-xl border border-cyan-200/30 bg-cyan-400/10 px-4 py-2 text-sm text-cyan-100">
-            Send Report to Doctor
-          </button>
+        <GlassCard title="Progress Report">
+          <RiskIndicatorMeter score={33} />
         </GlassCard>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <GlassCard title="Behavior Radar">
-          <BehaviorRadarChart eyeContact={72} attention={78} emotionStability={70} gestureScore={66} adaptability={69} />
+        <GlassCard title="Child Behavior Radar">
+          <BehaviorRadarChart eyeContact={74} attention={76} emotionStability={71} gestureScore={67} adaptability={69} />
         </GlassCard>
         <GlassCard title="Emotion Timeline">
-          <EmotionTimelineChart data={emotionData} />
+          <EmotionTimelineChart data={emotionTimeline} />
         </GlassCard>
-        <GlassCard title="Development Progress Timeline" className="lg:col-span-2">
-          <WeeklyProgressChart data={weeklyData} />
+      </div>
+
+      <GlassCard title="Weekly Development">
+        <WeeklyProgressChart data={weeklyProgress} />
+      </GlassCard>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <GlassCard title="Nearby Doctor Recommendations">
+          <div className="space-y-3">
+            {doctorRecommendations.map((doctor) => (
+              <div key={doctor.name} className="flex items-center gap-3 rounded-xl border border-slate-200/70 bg-white/70 p-3 dark:border-slate-700 dark:bg-slate-900/60">
+                <img src={doctor.photo} alt={doctor.name} className="h-14 w-14 rounded-xl object-cover" loading="lazy" />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-slate-700 dark:text-slate-100">{doctor.name}</p>
+                  <p className="truncate text-xs text-slate-500 dark:text-slate-300">{doctor.specialty}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-300">Rating {doctor.rating} | {doctor.location}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </GlassCard>
-        <GlassCard title="Risk Indicator" className="lg:col-span-2">
-          <RiskIndicatorMeter score={34} />
-        </GlassCard>
+        <AIAgentChat />
       </div>
     </section>
   )

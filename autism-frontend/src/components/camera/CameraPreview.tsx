@@ -34,7 +34,7 @@ const CameraPreview = ({ onReady }: CameraPreviewProps) => {
   }, [])
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-white/15 bg-slate-950/80">
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200/70 bg-slate-950/90 dark:border-slate-700">
       <video ref={videoRef} autoPlay playsInline muted className="h-[360px] w-full object-cover sm:h-[440px]" />
       {!isStreaming && (
         <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80">

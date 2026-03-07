@@ -1,16 +1,16 @@
 import { Outlet } from "react-router-dom"
+import AnimatedBackground from "../components/effects/AnimatedBackground"
+import CustomCursor from "../components/effects/CustomCursor"
 import Footer from "../components/layout/Footer"
-import TopNav from "../components/layout/TopNav"
+import GlassNavbar from "../components/layout/GlassNavbar"
 
 const AppShell = () => {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100">
-      <div className="pointer-events-none fixed inset-0 -z-10 opacity-70">
-        <div className="absolute top-[-12rem] left-[-10rem] h-96 w-96 rounded-full bg-cyan-500/20 blur-3xl" />
-        <div className="absolute right-[-6rem] bottom-[-10rem] h-[28rem] w-[28rem] rounded-full bg-blue-600/20 blur-3xl" />
-      </div>
-      <TopNav />
-      <main>
+    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] transition-colors duration-400">
+      <AnimatedBackground />
+      <CustomCursor />
+      <GlassNavbar />
+      <main className="pt-4">
         <Outlet />
       </main>
       <Footer />
