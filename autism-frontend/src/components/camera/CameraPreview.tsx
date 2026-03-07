@@ -8,6 +8,7 @@ export type CameraLiveMetrics = {
   emotionSignals: number
   gestureAnalysis: number
   confidence: number
+  imageBase64?: string
 }
 
 type CameraPreviewProps = {
@@ -46,6 +47,7 @@ const CameraPreview = ({ onReady, onLiveMetrics, metrics, onRecordingComplete }:
     gestureAnalysis: 61,
     confidence: 70,
   })
+  const sampleTickRef = useRef(0)
 
   const [error, setError] = useState<string | null>(null)
   const [isStreaming, setIsStreaming] = useState(false)
@@ -140,6 +142,11 @@ const CameraPreview = ({ onReady, onLiveMetrics, metrics, onRecordingComplete }:
         emotionSignals: clamp(prev.emotionSignals * (1 - alpha) + emotionSignals * alpha),
         gestureAnalysis: clamp(prev.gestureAnalysis * (1 - alpha) + gestureAnalysis * alpha),
         confidence: clamp(prev.confidence * (1 - alpha) + confidence * alpha),
+      }
+
+      sampleTickRef.current += 1
+      if (sampleTickRef.current % 3 === 0) {
+        next.imageBase64 = canvas.toDataURL("image/jpeg", 0.5)
       }
 
       smoothedRef.current = next

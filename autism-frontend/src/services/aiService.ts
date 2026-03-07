@@ -44,6 +44,7 @@ export type CameraMlFrame = {
   emotionSignals: number
   gestureAnalysis: number
   confidence: number
+  imageBase64?: string
 }
 
 export type CameraMlResult = {

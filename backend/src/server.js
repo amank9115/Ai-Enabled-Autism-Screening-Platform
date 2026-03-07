@@ -14,6 +14,7 @@ import {
   connectDatabase,
 } from "./db.js"
 import { scoreCameraScreening } from "./ml.js"
+import { scoreWithPythonLive, scoreWithPythonWindow } from "./pythonMlGateway.js"
 
 dotenv.config()
 
@@ -202,9 +203,25 @@ app.post(
       emotionSignals: Number(frame.emotionSignals ?? 0),
       gestureAnalysis: Number(frame.gestureAnalysis ?? 0),
       confidence: Number(frame.confidence ?? 70),
+      imageBase64: typeof frame.imageBase64 === "string" ? frame.imageBase64 : undefined,
     }))
 
-    const scoring = scoreCameraScreening(normalizedFrames)
+    let scoring = scoreCameraScreening(normalizedFrames)
+    try {
+      const py = await scoreWithPythonWindow(normalizedFrames, String(userId ?? ""))
+      if (py) {
+        scoring = {
+          ...scoring,
+          modelVersion: py.modelVersion,
+          riskScore: py.riskScore,
+          riskLabel: py.riskLabel,
+          featureAverages: py.featureAverages,
+          recommendations: py.recommendations.length ? py.recommendations : scoring.recommendations,
+        }
+      }
+    } catch (error) {
+      console.error("Python window inference failed, using JS fallback:", error instanceof Error ? error.message : error)
+    }
     const sessionId = `sess-${nanoid(10)}`
 
     await ScreeningSessionModel.create({
@@ -255,6 +272,7 @@ app.post(
       emotionSignals: Number(frame.emotionSignals ?? 0),
       gestureAnalysis: Number(frame.gestureAnalysis ?? 0),
       confidence: Number(frame.confidence ?? 70),
+      imageBase64: typeof frame.imageBase64 === "string" ? frame.imageBase64 : undefined,
     }
 
     const key = sessionKey.trim()
@@ -263,11 +281,29 @@ app.post(
     const windowFrames = existing.slice(-45)
     liveInferenceWindows.set(key, windowFrames)
 
-    const scoring = scoreCameraScreening(windowFrames)
+    let scoring = scoreCameraScreening(windowFrames)
+    let modelVersion = scoring.modelVersion
+
+    try {
+      const py = await scoreWithPythonLive(key, normalizedFrame)
+      if (py) {
+        scoring = {
+          ...scoring,
+          riskScore: py.riskScore,
+          riskLabel: py.riskLabel,
+          featureAverages: py.featureAverages,
+          recommendations: py.recommendations.length ? py.recommendations : scoring.recommendations,
+        }
+        modelVersion = py.modelVersion
+      }
+    } catch (error) {
+      console.error("Python live inference failed, using JS fallback:", error instanceof Error ? error.message : error)
+    }
+
     res.json({
       success: true,
       sessionKey: key,
-      modelVersion: scoring.modelVersion,
+      modelVersion,
       riskScore: scoring.riskScore,
       riskLabel: scoring.riskLabel,
       featureAverages: scoring.featureAverages,

@@ -16,3 +16,8 @@ build/
 # Logs
 *.log
 npm-debug.log*
+
+# Python ML service
+backend-python/.venv/
+backend-python/__pycache__/
+backend-python/**/*.pyc

@@ -79,6 +79,7 @@ const LiveScreeningPage = () => {
       emotionSignals: liveMetrics.emotionSignals,
       gestureAnalysis: liveMetrics.gestureAnalysis,
       confidence: liveMetrics.confidence,
+      imageBase64: liveMetrics.imageBase64,
     }
 
     liveFramesRef.current.push(frame)
