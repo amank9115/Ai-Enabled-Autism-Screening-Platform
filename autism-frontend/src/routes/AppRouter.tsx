@@ -6,8 +6,10 @@ import AppShell from "../layout/AppShell"
 const LandingPage = lazy(() => import("../pages/LandingPage"))
 const LoginPage = lazy(() => import("../pages/LoginPage"))
 const LiveScreeningPage = lazy(() => import("../pages/LiveScreeningPage"))
+const ChildProfilePage = lazy(() => import("../pages/ChildProfilePage"))
 const ParentDashboardPage = lazy(() => import("../pages/ParentDashboardPage"))
 const DoctorDashboardPage = lazy(() => import("../pages/DoctorDashboardPage"))
+const ChildCaseDetailsPage = lazy(() => import("../pages/ChildCaseDetailsPage"))
 const VideoAnalysisPage = lazy(() => import("../pages/VideoAnalysisPage"))
 const NotFoundPage = lazy(() => import("../pages/NotFoundPage"))
 
@@ -27,12 +29,35 @@ const AppRouter = () => {
           <Route element={<AppShell />}>
             <Route path="/" element={<LandingPage />} />
             <Route path="/auth" element={<LoginPage />} />
-            <Route path="/live-screening" element={<LiveScreeningPage />} />
+            <Route
+              path="/child-profile"
+              element={
+                <ProtectedRoute role="parent">
+                  <ChildProfilePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/live-screening"
+              element={
+                <ProtectedRoute role="parent">
+                  <LiveScreeningPage />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/parent-dashboard"
               element={
                 <ProtectedRoute role="parent">
                   <ParentDashboardPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/doctor/case/:caseId"
+              element={
+                <ProtectedRoute role="doctor">
+                  <ChildCaseDetailsPage />
                 </ProtectedRoute>
               }
             />

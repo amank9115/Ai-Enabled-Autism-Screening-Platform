@@ -1,5 +1,6 @@
 export type AuthRole = "parent" | "doctor"
 export type AuthMethod = "password" | "emailOtp" | "phoneOtp"
+export type SocialProvider = "google" | "facebook"
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -22,6 +23,16 @@ export const authApi = {
   loginWithPassword: async (_email: string, password: string, _role: AuthRole) => {
     await wait(900)
     if (password.length < 6) throw new Error("Password must be at least 6 characters.")
+    return { success: true }
+  },
+  loginWithSocial: async (_provider: SocialProvider, _role: AuthRole) => {
+    await wait(850)
+    return { success: true }
+  },
+  resetPassword: async (payload: { target: string; otp: string; newPassword: string }) => {
+    await wait(900)
+    if (payload.otp.length !== 6) throw new Error("OTP must be 6 digits.")
+    if (payload.newPassword.length < 6) throw new Error("Password must be at least 6 characters.")
     return { success: true }
   },
   registerUser: async (payload: {

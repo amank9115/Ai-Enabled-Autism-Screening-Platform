@@ -1,9 +1,12 @@
+﻿import { useMemo, useState } from "react"
 import AIAgentChat from "../components/chat/AIAgentChat"
 import BehaviorRadarChart from "../components/charts/BehaviorRadarChart"
 import EmotionTimelineChart from "../components/charts/EmotionTimelineChart"
 import RiskIndicatorMeter from "../components/charts/RiskIndicatorMeter"
 import WeeklyProgressChart from "../components/charts/WeeklyProgressChart"
+import SessionReviewPanel from "../components/video/SessionReviewPanel"
 import GlassCard from "../components/ui/GlassCard"
+import { useScreening, type SessionRecording } from "../context/ScreeningContext"
 import { emotionTimeline, weeklyProgress } from "../services/mock/dataset"
 
 const doctorRecommendations = [
@@ -31,6 +34,11 @@ const doctorRecommendations = [
 ]
 
 const ParentDashboardPage = () => {
+  const { recordings } = useScreening()
+  const [selectedRecording, setSelectedRecording] = useState<SessionRecording | null>(null)
+
+  const sortedRecordings = useMemo(() => recordings.slice(0, 8), [recordings])
+
   return (
     <section className="mx-auto max-w-7xl space-y-4 px-4 py-8 sm:px-6 lg:px-8">
       <header>
@@ -41,7 +49,7 @@ const ParentDashboardPage = () => {
       <div className="grid gap-4 lg:grid-cols-3">
         <GlassCard title="Live Screening">
           <p className="text-sm text-slate-600 dark:text-slate-300">Run a camera-based session and get live behavioral overlays.</p>
-          <a href="/live-screening" className="mt-3 inline-block rounded-lg bg-sky-500 px-3 py-2 text-xs font-semibold text-white">Start session</a>
+          <a href="/child-profile" className="mt-3 inline-block rounded-lg bg-sky-500 px-3 py-2 text-xs font-semibold text-white">Start session</a>
         </GlassCard>
         <GlassCard title="Therapy Tracking">
           <p className="text-sm text-slate-600 dark:text-slate-300">4 sessions completed this week. Consistency score 82%.</p>
@@ -63,6 +71,29 @@ const ParentDashboardPage = () => {
       <GlassCard title="Weekly Development">
         <WeeklyProgressChart data={weeklyProgress} />
       </GlassCard>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <GlassCard title="Session History">
+          {sortedRecordings.length === 0 ? (
+            <p className="text-sm text-slate-600 dark:text-slate-300">No recordings yet. Start a live screening and record a session.</p>
+          ) : (
+            <div className="space-y-2">
+              {sortedRecordings.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => setSelectedRecording(item)}
+                  className="w-full rounded-xl border border-slate-200/70 bg-white/75 p-3 text-left transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-700 dark:bg-slate-900/60"
+                >
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-100">{item.childName}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-300">{item.createdAt} | Risk {item.riskScore}% | Duration {item.durationSec}s</p>
+                </button>
+              ))}
+            </div>
+          )}
+        </GlassCard>
+
+        <SessionReviewPanel recording={selectedRecording} />
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <GlassCard title="Nearby Doctor Recommendations">
