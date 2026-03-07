@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import OtpInput from "../components/auth/OtpInput"
 import RoleToggle from "../components/auth/RoleToggle"
+import GuestDemoButton from "../components/guest/GuestDemoButton"
 import ToastStack, { type ToastItem } from "../components/ui/ToastStack"
 import { useAuth } from "../context/AuthContext"
 import { useOtpAuth } from "../hooks/useOtpAuth"
@@ -47,7 +48,7 @@ const EyeFollowFace = ({ eyeX, eyeY, protect }: { eyeX: ReturnType<typeof useSpr
 
 const LoginPage = () => {
   const navigate = useNavigate()
-  const { login } = useAuth()
+  const { login, enterGuestMode } = useAuth()
   const [searchParams] = useSearchParams()
   const initialMode: Mode = searchParams.get("mode") === "register" ? "register" : "login"
 
@@ -217,6 +218,11 @@ const LoginPage = () => {
     void submitPasswordLogin()
   }
 
+  const enterDemo = () => {
+    enterGuestMode()
+    navigate("/demo")
+  }
+
   return (
     <section className="relative mx-auto min-h-[calc(100vh-10rem)] max-w-7xl overflow-hidden px-4 py-8 sm:px-6 lg:px-8">
       <ToastStack toasts={toasts} />
@@ -289,6 +295,8 @@ const LoginPage = () => {
                       <button type="button" onClick={() => loginWithSocial("google")} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100">Continue with Google</button>
                       <button type="button" onClick={() => loginWithSocial("facebook")} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100">Continue with Facebook</button>
                     </div>
+
+                    <GuestDemoButton onClick={enterDemo} className="w-full" />
 
                     <button type="button" onClick={() => { setForgotOpen((current) => !current); resetOtp() }} className="text-xs font-semibold text-sky-600 dark:text-sky-300">Forgot password?</button>
 
