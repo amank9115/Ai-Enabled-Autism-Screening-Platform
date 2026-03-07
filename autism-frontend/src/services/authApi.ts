@@ -1,4 +1,4 @@
-﻿import { fetchJson } from "../api/client"
+import { fetchJson } from "../api/client"
 
 export type AuthRole = "parent" | "doctor"
 export type AuthMethod = "password" | "emailOtp" | "phoneOtp"

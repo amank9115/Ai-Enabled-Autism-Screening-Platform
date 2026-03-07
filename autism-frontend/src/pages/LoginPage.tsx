@@ -1,5 +1,5 @@
 import { AnimatePresence, motion, useMotionValue, useSpring } from "framer-motion"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import AuthMethodTabs from "../components/auth/AuthMethodTabs"
 import OtpInput from "../components/auth/OtpInput"
@@ -19,6 +19,32 @@ const bgShift = {
   },
 }
 
+const EyeFollowFace = ({ eyeX, eyeY, protect }: { eyeX: ReturnType<typeof useSpring>; eyeY: ReturnType<typeof useSpring>; protect: boolean }) => {
+  return (
+    <div className="relative mx-auto h-40 w-40">
+      <div className="absolute inset-0 rounded-full bg-gradient-to-br from-sky-200 to-emerald-200" />
+      <div className="absolute left-[32px] top-[56px] h-9 w-9 rounded-full bg-white">
+        <motion.div className="absolute left-2 top-2 h-4 w-4 rounded-full bg-slate-900" style={{ x: eyeX, y: eyeY }} />
+      </div>
+      <div className="absolute right-[32px] top-[56px] h-9 w-9 rounded-full bg-white">
+        <motion.div className="absolute left-2 top-2 h-4 w-4 rounded-full bg-slate-900" style={{ x: eyeX, y: eyeY }} />
+      </div>
+      <div className="absolute left-1/2 top-[105px] h-2 w-10 -translate-x-1/2 rounded-full bg-slate-600" />
+
+      <motion.div
+        className="absolute left-4 top-[52px] h-12 w-10 rounded-full bg-amber-100/90"
+        animate={{ y: protect ? 16 : -12, rotate: protect ? -10 : 8 }}
+        transition={{ type: "spring", stiffness: 280, damping: 24 }}
+      />
+      <motion.div
+        className="absolute right-4 top-[52px] h-12 w-10 rounded-full bg-amber-100/90"
+        animate={{ y: protect ? 16 : -12, rotate: protect ? 10 : -8 }}
+        transition={{ type: "spring", stiffness: 280, damping: 24 }}
+      />
+    </div>
+  )
+}
+
 const LoginPage = () => {
   const navigate = useNavigate()
   const { login } = useAuth()
@@ -26,8 +52,8 @@ const LoginPage = () => {
   const initialMode: Mode = searchParams.get("mode") === "register" ? "register" : "login"
 
   const [mode, setMode] = useState<Mode>(initialMode)
-  const [role, setRole] = useState<AuthRole>("parent")
   const [method, setMethod] = useState<AuthMethod>("password")
+  const [role, setRole] = useState<AuthRole>("parent")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [phone, setPhone] = useState("")
@@ -38,10 +64,18 @@ const LoginPage = () => {
   const [toasts, setToasts] = useState<ToastItem[]>([])
   const [authSuccess, setAuthSuccess] = useState(false)
 
+  const [passwordTyping, setPasswordTyping] = useState(false)
+  const typingTimer = useRef<number | null>(null)
+
   const pointerX = useMotionValue(0)
   const pointerY = useMotionValue(0)
   const smoothX = useSpring(pointerX, { stiffness: 80, damping: 18 })
   const smoothY = useSpring(pointerY, { stiffness: 80, damping: 18 })
+
+  const eyeXRaw = useMotionValue(0)
+  const eyeYRaw = useMotionValue(0)
+  const eyeX = useSpring(eyeXRaw, { stiffness: 230, damping: 24 })
+  const eyeY = useSpring(eyeYRaw, { stiffness: 230, damping: 24 })
 
   const { otp, otpSent, otpValues, timer, canResend, setOtpValues, startOtp, resetOtp } = useOtpAuth()
 
@@ -50,10 +84,14 @@ const LoginPage = () => {
     const onMove = (event: MouseEvent) => {
       const nx = (event.clientX / window.innerWidth - 0.5) * 24
       const ny = (event.clientY / window.innerHeight - 0.5) * 24
+      const ex = Math.max(-2.5, Math.min(2.5, (event.clientX / window.innerWidth - 0.5) * 6))
+      const ey = Math.max(-2.5, Math.min(2.5, (event.clientY / window.innerHeight - 0.5) * 6))
       if (raf) cancelAnimationFrame(raf)
       raf = requestAnimationFrame(() => {
         pointerX.set(nx)
         pointerY.set(ny)
+        eyeXRaw.set(ex)
+        eyeYRaw.set(ey)
       })
     }
 
@@ -62,11 +100,11 @@ const LoginPage = () => {
       window.removeEventListener("mousemove", onMove)
       if (raf) cancelAnimationFrame(raf)
     }
-  }, [pointerX, pointerY])
+  }, [pointerX, pointerY, eyeXRaw, eyeYRaw])
 
   const subtitle = useMemo(() => {
-    if (role === "parent") return "Guided screening access for families and caregivers."
-    return "Clinical workflow access for doctors and specialists."
+    if (role === "parent") return "Safe access for parents and caregivers."
+    return "Secure workspace for doctors and clinicians."
   }, [role])
 
   const pushToast = (type: ToastItem["type"], message: string) => {
@@ -81,6 +119,12 @@ const LoginPage = () => {
     navigate(userRole === "parent" ? "/parent-dashboard" : "/doctor-dashboard")
   }
 
+  const markTyping = () => {
+    setPasswordTyping(true)
+    if (typingTimer.current) window.clearTimeout(typingTimer.current)
+    typingTimer.current = window.setTimeout(() => setPasswordTyping(false), 700)
+  }
+
   const submitPasswordLogin = async () => {
     setLoading(true)
     try {
@@ -91,66 +135,6 @@ const LoginPage = () => {
       setTimeout(() => routeAfterAuth(result.user.role), 550)
     } catch (error) {
       pushToast("error", error instanceof Error ? error.message : "Login failed")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const sendOtp = async () => {
-    setLoading(true)
-    try {
-      if (method === "emailOtp") {
-        await authApi.sendEmailOtp(email)
-      } else {
-        await authApi.sendPhoneOtp(`${countryCode}${phone}`)
-      }
-      startOtp()
-      pushToast("info", "OTP sent successfully")
-    } catch (error) {
-      pushToast("error", error instanceof Error ? error.message : "Unable to send OTP")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const verifyOtpLogin = async () => {
-    setLoading(true)
-    try {
-      await authApi.verifyOtp(otp)
-      const result = await authApi.loginWithOtp({
-        email: method === "emailOtp" ? email.trim() : undefined,
-        phone: method === "phoneOtp" ? `${countryCode}${phone}` : undefined,
-        role,
-        name: name.trim() || undefined,
-      })
-      login(result.user.name, result.user.role)
-      setAuthSuccess(true)
-      pushToast("success", "Verification successful")
-      setTimeout(() => routeAfterAuth(result.user.role), 550)
-    } catch (error) {
-      pushToast("error", error instanceof Error ? error.message : "Invalid OTP")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const register = async () => {
-    setLoading(true)
-    try {
-      const result = await authApi.registerUser({
-        name,
-        email,
-        phone: `${countryCode}${phone}`,
-        password,
-        confirmPassword,
-        role,
-      })
-      login(result.user.name, result.user.role)
-      setAuthSuccess(true)
-      pushToast("success", "Registration completed")
-      setTimeout(() => routeAfterAuth(result.user.role), 550)
-    } catch (error) {
-      pushToast("error", error instanceof Error ? error.message : "Registration failed")
     } finally {
       setLoading(false)
     }
@@ -180,9 +164,89 @@ const LoginPage = () => {
     }
   }
 
+  const sendOtp = async () => {
+    setLoading(true)
+    try {
+      if (method === "emailOtp") {
+        await authApi.sendEmailOtp(email)
+      } else {
+        await authApi.sendPhoneOtp(`${countryCode}${phone}`)
+      }
+      startOtp()
+      pushToast("info", "OTP sent")
+    } catch (error) {
+      pushToast("error", error instanceof Error ? error.message : "Unable to send OTP")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const verifyOtpLogin = async () => {
+    setLoading(true)
+    try {
+      await authApi.verifyOtp(otp)
+      const result = await authApi.loginWithOtp({
+        email: method === "emailOtp" ? email.trim() : undefined,
+        phone: method === "phoneOtp" ? `${countryCode}${phone}` : undefined,
+        role,
+        name: name.trim() || undefined,
+      })
+      login(result.user.name, result.user.role)
+      setAuthSuccess(true)
+      pushToast("success", "Verification successful")
+      setTimeout(() => routeAfterAuth(result.user.role), 550)
+    } catch (error) {
+      pushToast("error", error instanceof Error ? error.message : "OTP verification failed")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const register = async () => {
+    setLoading(true)
+    try {
+      const result = await authApi.registerUser({
+        name,
+        email,
+        phone: `${countryCode}${phone}`,
+        password,
+        confirmPassword,
+        role,
+      })
+      login(result.user.name, result.user.role)
+      setAuthSuccess(true)
+      pushToast("success", "Registration completed")
+      setTimeout(() => routeAfterAuth(result.user.role), 550)
+    } catch (error) {
+      pushToast("error", error instanceof Error ? error.message : "Registration failed")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const onMethodChange = (nextMethod: AuthMethod) => {
     setMethod(nextMethod)
     resetOtp()
+  }
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (mode === "register") {
+      void register()
+      return
+    }
+
+    if (method === "password") {
+      void submitPasswordLogin()
+      return
+    }
+
+    if (!otpSent) {
+      void sendOtp()
+      return
+    }
+
+    void verifyOtpLogin()
   }
 
   return (
@@ -197,51 +261,18 @@ const LoginPage = () => {
       <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
         <motion.aside
           style={{ x: smoothX, y: smoothY }}
-          className="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white/65 p-6 backdrop-blur-2xl dark:border-slate-700 dark:bg-slate-900/55"
+          className="relative flex items-center justify-center overflow-hidden rounded-3xl border border-slate-200/70 bg-white/65 p-6 backdrop-blur-2xl"
         >
-          <motion.div
-            animate={{ y: [0, -7, 0] }}
-            transition={{ duration: 4, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
-            className="absolute -top-10 -left-10 h-40 w-40 rounded-full bg-sky-400/25 blur-2xl"
-          />
-          <motion.div
-            animate={{ y: [0, 8, 0] }}
-            transition={{ duration: 5.5, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
-            className="absolute right-0 bottom-0 h-44 w-44 rounded-full bg-emerald-400/20 blur-2xl"
-          />
+          <div className="w-full">
+            <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 4.5, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }} className="absolute -left-10 -top-10 h-40 w-40 rounded-full bg-sky-400/25 blur-2xl" />
+            <motion.div animate={{ y: [0, 9, 0] }} transition={{ duration: 5.2, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }} className="absolute bottom-0 right-0 h-44 w-44 rounded-full bg-emerald-400/20 blur-2xl" />
 
-          <p className="text-xs tracking-[0.2em] text-sky-600 uppercase dark:text-sky-300">AI Behavioral Care</p>
-          <h1 className="mt-2 max-w-md text-4xl font-semibold text-slate-800 dark:text-slate-100">
-            Secure onboarding for smarter early autism support.
-          </h1>
-          <p className="mt-3 max-w-md text-sm text-slate-600 dark:text-slate-300">
-            ManasSaathi AI helps parents and doctors move from concern to informed action with responsible AI guidance.
-          </p>
+            <p className="text-xs tracking-[0.2em] text-sky-600 uppercase">AI Behavioral Care</p>
+            <h1 className="mt-2 max-w-md text-4xl font-semibold text-slate-800">Secure onboarding for early autism support.</h1>
+            <p className="mt-3 max-w-md text-sm text-slate-600">Email/password, Google sign-in, and OTP login are supported.</p>
 
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-2xl border border-slate-200/70 bg-white/70 p-4 dark:border-slate-700 dark:bg-slate-950/50">
-              <p className="text-xs text-slate-500 dark:text-slate-300">AI Insight</p>
-              <p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-100">Emotion + attention trend analysis</p>
-            </div>
-            <div className="rounded-2xl border border-slate-200/70 bg-white/70 p-4 dark:border-slate-700 dark:bg-slate-950/50">
-              <p className="text-xs text-slate-500 dark:text-slate-300">Healthcare Ready</p>
-              <p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-100">Parent-doctor collaborative workflow</p>
-            </div>
-          </div>
-
-          <div className="mt-6 rounded-2xl border border-slate-200/70 bg-white/80 p-4 dark:border-slate-700 dark:bg-slate-950/55">
-            <div className="flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-sky-500/20 to-emerald-500/20">
-                <svg viewBox="0 0 24 24" className="h-6 w-6 text-sky-600 dark:text-sky-300" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M4 13.5C4 10 6.7 7 10 7C12.6 7 14.8 8.8 15.5 11.2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                  <path d="M14 16.5C14.9 17.5 16.2 18 17.6 18C19.9 18 21.8 16.1 21.8 13.8C21.8 11.5 19.9 9.6 17.6 9.6C16 9.6 14.6 10.4 13.9 11.8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                  <circle cx="8.6" cy="14.3" r="1.5" fill="currentColor" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500 dark:text-slate-300">Trusted Screening Experience</p>
-                <p className="text-sm font-semibold text-slate-700 dark:text-slate-100">Secure. Calm. Clinical.</p>
-              </div>
+            <div className="mt-6">
+              <EyeFollowFace eyeX={eyeX} eyeY={eyeY} protect={passwordTyping} />
             </div>
           </div>
         </motion.aside>
@@ -250,197 +281,180 @@ const LoginPage = () => {
           initial={{ opacity: 0, scale: 0.94, y: 18 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-          className="rounded-3xl border border-slate-200/70 bg-white/70 p-6 shadow-[0_24px_70px_rgba(15,23,42,0.16)] backdrop-blur-2xl dark:border-slate-700 dark:bg-slate-900/55"
+          className="rounded-3xl border border-slate-200/70 bg-white/70 p-6 shadow-[0_24px_70px_rgba(15,23,42,0.16)] backdrop-blur-2xl"
         >
-          <p className="text-xs tracking-[0.18em] text-sky-600 uppercase dark:text-sky-300">Secure Access</p>
-          <h2 className="mt-2 text-2xl font-semibold text-slate-800 dark:text-slate-100">{mode === "login" ? "Welcome back" : "Create your account"}</h2>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">{subtitle}</p>
+          <form onSubmit={handleSubmit}>
+            <p className="text-xs tracking-[0.18em] text-sky-600 uppercase">Secure Access</p>
+            <h2 className="mt-2 text-2xl font-semibold text-slate-800">{mode === "login" ? "Welcome back" : "Create your account"}</h2>
+            <p className="mt-1 text-sm text-slate-600">{subtitle}</p>
 
-          <div className="mt-4 space-y-3">
-            <RoleToggle value={role} onChange={setRole} />
+            <div className="mt-4 space-y-3">
+              <RoleToggle value={role} onChange={setRole} />
 
-            <div className="flex rounded-xl border border-slate-200/80 bg-white/60 p-1 dark:border-slate-700 dark:bg-slate-900/55">
-              <button
-                onClick={() => setMode("login")}
-                className={`flex-1 rounded-lg py-2 text-sm transition ${
-                  mode === "login" ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900" : "text-slate-500 dark:text-slate-300"
-                }`}
-              >
-                Login
-              </button>
-              <button
-                onClick={() => setMode("register")}
-                className={`flex-1 rounded-lg py-2 text-sm transition ${
-                  mode === "register" ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900" : "text-slate-500 dark:text-slate-300"
-                }`}
-              >
-                Register
-              </button>
-            </div>
+              <div className="flex rounded-xl border border-slate-200/80 bg-white/60 p-1">
+                <button type="button" onClick={() => setMode("login")} className={`flex-1 rounded-lg py-2 text-sm transition ${mode === "login" ? "bg-slate-900 text-white" : "text-slate-600"}`}>Login</button>
+                <button type="button" onClick={() => setMode("register")} className={`flex-1 rounded-lg py-2 text-sm transition ${mode === "register" ? "bg-slate-900 text-white" : "text-slate-600"}`}>Register</button>
+              </div>
 
-            <AnimatePresence mode="wait">
-              {mode === "login" ? (
-                <motion.div key="login" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-3">
-                  <AuthMethodTabs value={method} onChange={onMethodChange} />
+              <AnimatePresence mode="wait">
+                {mode === "login" ? (
+                  <motion.div key="login" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-3">
+                    <AuthMethodTabs value={method} onChange={onMethodChange} />
 
-                  {method === "password" && (
-                    <>
-                      <input
-                        value={name}
-                        onChange={(event) => setName(event.target.value)}
-                        placeholder="Display name (optional)"
-                        className="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-300/40 dark:border-slate-600 dark:bg-slate-900/65 dark:text-slate-200"
-                      />
+                    <input
+                      value={name}
+                      onChange={(event) => setName(event.target.value)}
+                      placeholder="Display name (optional)"
+                      className="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-300/40"
+                    />
+
+                    {method === "emailOtp" ? (
                       <input
                         value={email}
                         onChange={(event) => setEmail(event.target.value)}
                         placeholder="Email"
-                        className="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-300/40 dark:border-slate-600 dark:bg-slate-900/65 dark:text-slate-200"
+                        className="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-300/40"
                       />
-                      <input
-                        type="password"
-                        value={password}
-                        onChange={(event) => setPassword(event.target.value)}
-                        placeholder="Password"
-                        className="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-300/40 dark:border-slate-600 dark:bg-slate-900/65 dark:text-slate-200"
-                      />
-                      <button
-                        onClick={submitPasswordLogin}
-                        className="group flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-emerald-500 px-4 py-2 text-sm font-semibold text-white transition hover:shadow-lg hover:shadow-sky-500/25"
-                      >
-                        {loading && <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />}
-                        {loading ? "Signing in..." : authSuccess ? "Success" : "Sign in securely"}
-                      </button>
-                      <button
-                        onClick={googleLogin}
-                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900/60 dark:text-slate-200"
-                      >
-                        Continue with Google
-                      </button>
-                    </>
-                  )}
-
-                  {(method === "emailOtp" || method === "phoneOtp") && (
-                    <>
-                      <input
-                        value={name}
-                        onChange={(event) => setName(event.target.value)}
-                        placeholder="Display name (optional)"
-                        className="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-300/40 dark:border-slate-600 dark:bg-slate-900/65 dark:text-slate-200"
-                      />
-
-                      {method === "emailOtp" ? (
+                    ) : method === "phoneOtp" ? (
+                      <div className="flex gap-2">
+                        <select
+                          value={countryCode}
+                          onChange={(event) => setCountryCode(event.target.value)}
+                          className="rounded-xl border border-slate-300 bg-white/80 px-2 text-sm text-slate-700 outline-none"
+                        >
+                          <option value="+91">+91</option>
+                          <option value="+1">+1</option>
+                          <option value="+44">+44</option>
+                        </select>
+                        <input
+                          value={phone}
+                          onChange={(event) => setPhone(event.target.value.replace(/\D/g, ""))}
+                          placeholder="Phone number"
+                          className="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-300/40"
+                        />
+                      </div>
+                    ) : (
+                      <>
                         <input
                           value={email}
                           onChange={(event) => setEmail(event.target.value)}
                           placeholder="Email"
-                          className="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-300/40 dark:border-slate-600 dark:bg-slate-900/65 dark:text-slate-200"
+                          className="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-300/40"
                         />
-                      ) : (
-                        <div className="flex gap-2">
-                          <select
-                            value={countryCode}
-                            onChange={(event) => setCountryCode(event.target.value)}
-                            className="rounded-xl border border-slate-300 bg-white/80 px-2 text-sm text-slate-700 outline-none dark:border-slate-600 dark:bg-slate-900/65 dark:text-slate-200"
-                          >
-                            <option value="+91">+91</option>
-                            <option value="+1">+1</option>
-                            <option value="+44">+44</option>
-                          </select>
-                          <input
-                            value={phone}
-                            onChange={(event) => setPhone(event.target.value.replace(/\D/g, ""))}
-                            placeholder="Phone number"
-                            className="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-300/40 dark:border-slate-600 dark:bg-slate-900/65 dark:text-slate-200"
-                          />
-                        </div>
-                      )}
+                        <input
+                          type="password"
+                          value={password}
+                          onChange={(event) => {
+                            setPassword(event.target.value)
+                            markTyping()
+                          }}
+                          placeholder="Password"
+                          className="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-300/40"
+                        />
+                      </>
+                    )}
 
-                      {!otpSent ? (
-                        <button
-                          onClick={sendOtp}
-                          className="group flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-emerald-500 px-4 py-2 text-sm font-semibold text-white transition hover:shadow-lg hover:shadow-sky-500/25"
-                        >
-                          {loading && <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />}
-                          {loading ? "Sending OTP..." : "Send OTP"}
-                        </button>
-                      ) : (
-                        <div className="space-y-3">
-                          <OtpInput values={otpValues} onChange={setOtpValues} />
-                          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-300">
-                            <span>{canResend ? "You can resend OTP now" : `Resend OTP in ${timer}s`}</span>
-                            <button disabled={!canResend || loading} onClick={sendOtp} className="font-semibold text-sky-600 disabled:opacity-40 dark:text-sky-300">
-                              Resend
-                            </button>
-                          </div>
-                          <button
-                            onClick={verifyOtpLogin}
-                            className="group flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-emerald-500 px-4 py-2 text-sm font-semibold text-white transition hover:shadow-lg hover:shadow-sky-500/25"
-                          >
-                            {loading && <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />}
-                            {loading ? "Verifying..." : authSuccess ? "Success" : "Verify and continue"}
+                    {method !== "password" && otpSent && (
+                      <div className="space-y-3">
+                        <OtpInput values={otpValues} onChange={setOtpValues} />
+                        <div className="flex items-center justify-between text-xs text-slate-500">
+                          <span>{canResend ? "You can resend OTP now" : `Resend OTP in ${timer}s`}</span>
+                          <button type="button" disabled={!canResend || loading} onClick={() => void sendOtp()} className="font-semibold text-sky-600 disabled:opacity-40">
+                            Resend
                           </button>
                         </div>
-                      )}
-                    </>
-                  )}
-                </motion.div>
-              ) : (
-                <motion.div key="register" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-3">
-                  <input
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                    placeholder="Full name"
-                    className="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-300/40 dark:border-slate-600 dark:bg-slate-900/65 dark:text-slate-200"
-                  />
-                  <input
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    placeholder="Email"
-                    className="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-300/40 dark:border-slate-600 dark:bg-slate-900/65 dark:text-slate-200"
-                  />
-                  <div className="flex gap-2">
-                    <select
-                      value={countryCode}
-                      onChange={(event) => setCountryCode(event.target.value)}
-                      className="rounded-xl border border-slate-300 bg-white/80 px-2 text-sm text-slate-700 outline-none dark:border-slate-600 dark:bg-slate-900/65 dark:text-slate-200"
-                    >
-                      <option value="+91">+91</option>
-                      <option value="+1">+1</option>
-                      <option value="+44">+44</option>
-                    </select>
+                      </div>
+                    )}
+
+                    <button type="submit" className="group flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-emerald-500 px-4 py-2 text-sm font-semibold text-white transition hover:shadow-lg hover:shadow-sky-500/25">
+                      {loading && <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />}
+                      {method === "password"
+                        ? loading
+                          ? "Signing in..."
+                          : authSuccess
+                            ? "Success"
+                            : "Sign in securely"
+                        : !otpSent
+                          ? loading
+                            ? "Sending OTP..."
+                            : "Send OTP"
+                          : loading
+                            ? "Verifying..."
+                            : authSuccess
+                              ? "Success"
+                              : "Verify and continue"}
+                    </button>
+
+                    {method === "password" && (
+                      <button
+                        type="button"
+                        onClick={() => void googleLogin()}
+                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                      >
+                        Continue with Google
+                      </button>
+                    )}
+                  </motion.div>
+                ) : (
+                  <motion.div key="register" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-3">
                     <input
-                      value={phone}
-                      onChange={(event) => setPhone(event.target.value.replace(/\D/g, ""))}
-                      placeholder="Phone number"
-                      className="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-300/40 dark:border-slate-600 dark:bg-slate-900/65 dark:text-slate-200"
+                      value={name}
+                      onChange={(event) => setName(event.target.value)}
+                      placeholder="Full name"
+                      className="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-300/40"
                     />
-                  </div>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    placeholder="Password"
-                    className="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-300/40 dark:border-slate-600 dark:bg-slate-900/65 dark:text-slate-200"
-                  />
-                  <input
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(event) => setConfirmPassword(event.target.value)}
-                    placeholder="Confirm password"
-                    className="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-300/40 dark:border-slate-600 dark:bg-slate-900/65 dark:text-slate-200"
-                  />
-                  <button
-                    onClick={register}
-                    className="group flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-emerald-500 px-4 py-2 text-sm font-semibold text-white transition hover:shadow-lg hover:shadow-sky-500/25"
-                  >
-                    {loading && <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />}
-                    {loading ? "Creating account..." : authSuccess ? "Success" : "Create secure account"}
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+                    <input
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      placeholder="Email"
+                      className="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-300/40"
+                    />
+                    <div className="flex gap-2">
+                      <select
+                        value={countryCode}
+                        onChange={(event) => setCountryCode(event.target.value)}
+                        className="rounded-xl border border-slate-300 bg-white/80 px-2 text-sm text-slate-700 outline-none"
+                      >
+                        <option value="+91">+91</option>
+                        <option value="+1">+1</option>
+                        <option value="+44">+44</option>
+                      </select>
+                      <input
+                        value={phone}
+                        onChange={(event) => setPhone(event.target.value.replace(/\D/g, ""))}
+                        placeholder="Phone number"
+                        className="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-300/40"
+                      />
+                    </div>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(event) => {
+                        setPassword(event.target.value)
+                        markTyping()
+                      }}
+                      placeholder="Password"
+                      className="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-300/40"
+                    />
+                    <input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(event) => {
+                        setConfirmPassword(event.target.value)
+                        markTyping()
+                      }}
+                      placeholder="Confirm password"
+                      className="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-300/40"
+                    />
+                    <button type="submit" className="group flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-emerald-500 px-4 py-2 text-sm font-semibold text-white transition hover:shadow-lg hover:shadow-sky-500/25">
+                      {loading && <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />}
+                      {loading ? "Creating account..." : authSuccess ? "Success" : "Create secure account"}
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </form>
         </motion.div>
       </div>
     </section>
@@ -448,5 +462,3 @@ const LoginPage = () => {
 }
 
 export default LoginPage
-
-

@@ -69,9 +69,38 @@ export type CameraMlResult = {
   policy: string
 }
 
+export type LiveCameraMlPayload = {
+  sessionKey: string
+  frame: CameraMlFrame & { frameIndex?: number }
+}
+
+export type LiveCameraMlResult = {
+  success: boolean
+  sessionKey: string
+  modelVersion: string
+  riskScore: number
+  riskLabel: "low" | "moderate" | "high"
+  featureAverages: {
+    eyeContact: number
+    attentionSpan: number
+    emotionSignals: number
+    gestureAnalysis: number
+  }
+  windowSize: number
+  recommendations: string[]
+  policy: string
+}
+
 export const runCameraMlScreening = async (frames: CameraMlFrame[], userId?: string) => {
   return fetchJson<CameraMlResult>("/ml/camera-screening", {
     method: "POST",
     body: JSON.stringify({ frames, userId }),
+  })
+}
+
+export const runLiveCameraInference = async (payload: LiveCameraMlPayload) => {
+  return fetchJson<LiveCameraMlResult>("/ml/live-inference", {
+    method: "POST",
+    body: JSON.stringify(payload),
   })
 }

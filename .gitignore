@@ -1,0 +1,18 @@
+﻿# Environment secrets
+.env
+*.env
+backend/.env
+autism-frontend/.env
+
+# Dependencies
+node_modules/
+backend/node_modules/
+autism-frontend/node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*

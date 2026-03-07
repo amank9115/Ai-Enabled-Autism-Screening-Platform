@@ -1,54 +1,36 @@
-﻿import { fetchJson } from "../../api/client"
-import {
-  behaviorTimeline,
-  childProfiles,
-  emotionTimeline,
-  messages,
-  sessionHistory,
-  weeklyProgress,
-} from "../mock/dataset"
+import { fetchJson } from "../../api/client"
 
 export const analysisApi = {
   getLiveBehaviorTimeline: async () => {
-    try {
-      return await fetchJson<typeof behaviorTimeline>("/analysis/live-behavior")
-    } catch {
-      return behaviorTimeline
-    }
+    return fetchJson<Array<{ t: string; eyeContact: number; attention: number; emotionSignals: number; gestureAnalysis: number }>>(
+      "/analysis/live-behavior",
+    )
   },
   getEmotionTimeline: async () => {
-    try {
-      return await fetchJson<typeof emotionTimeline>("/analysis/emotion-timeline")
-    } catch {
-      return emotionTimeline
-    }
+    return fetchJson<Array<{ t: string; calm: number; stress: number; curious: number }>>("/analysis/emotion-timeline")
   },
   getWeeklyProgress: async () => {
-    try {
-      return await fetchJson<typeof weeklyProgress>("/analysis/weekly-progress")
-    } catch {
-      return weeklyProgress
-    }
+    return fetchJson<Array<{ week: string; engagement: number; eyeContact: number; languageResponse: number }>>(
+      "/analysis/weekly-progress",
+    )
   },
   getChildProfiles: async () => {
-    try {
-      return await fetchJson<typeof childProfiles>("/analysis/child-profiles")
-    } catch {
-      return childProfiles
-    }
+    return fetchJson<Array<{ id: string; name: string; age: string; lastSession: string; riskLevel: string }>>(
+      "/analysis/child-profiles",
+    )
   },
   getSessionHistory: async () => {
-    try {
-      return await fetchJson<typeof sessionHistory>("/analysis/session-history")
-    } catch {
-      return sessionHistory
-    }
+    return fetchJson<Array<{ id: string; childName: string; date: string; duration: string; attentionAverage: number; riskScore: number; status: string }>>(
+      "/analysis/session-history",
+    )
   },
   getMessages: async () => {
-    try {
-      return await fetchJson<typeof messages>("/analysis/messages")
-    } catch {
-      return messages
-    }
+    const rows = await fetchJson<Array<{ id: string; from: "parent" | "doctor"; name: string; message: string; at: string }>>(
+      "/analysis/messages",
+    )
+    return rows.map((item) => ({
+      ...item,
+      from: (item.from === "parent" ? "Parent" : "Doctor") as "Parent" | "Doctor",
+    }))
   },
 }
