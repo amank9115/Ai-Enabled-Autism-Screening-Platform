@@ -80,7 +80,7 @@ const runOpenAiSearch = async (query) => {
 
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://127.0.0.1:5173"],
+    origin: true,
     credentials: true,
   }),
 )
@@ -495,6 +495,43 @@ app.post(
     }
 
     res.json({ success: true, user: { id: user.id, name: user.name, role: user.role, email: user.email } })
+  }),
+)
+
+app.post(
+  "/api/v1/auth/forgot-password",
+  asyncHandler(async (req, res) => {
+    const { role, newPassword, confirmPassword } = req.body ?? {}
+    const email = normalizeEmail(req.body?.email)
+
+    if (!email || !role || !newPassword || !confirmPassword) {
+      res.status(400).json({ success: false, message: "Missing required fields." })
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      res.status(400).json({ success: false, message: "Passwords do not match." })
+      return
+    }
+    if (String(newPassword).length < 6) {
+      res.status(400).json({ success: false, message: "Password must be at least 6 characters." })
+      return
+    }
+
+    const user = await UserModel.findOne({ email, role })
+    if (!user) {
+      res.status(404).json({ success: false, message: "Account not found for this role." })
+      return
+    }
+    if (user.provider === "google") {
+      res.status(400).json({ success: false, message: "This account uses Google sign-in." })
+      return
+    }
+
+    user.passwordHash = bcrypt.hashSync(String(newPassword), 10)
+    user.provider = "local"
+    await user.save()
+
+    res.json({ success: true, message: "Password reset successful. Please login." })
   }),
 )
 

@@ -35,4 +35,10 @@ export const authApi = {
       body: JSON.stringify(payload),
     })
   },
+  forgotPassword: async (payload: { email: string; role: AuthRole; newPassword: string; confirmPassword: string }) => {
+    return fetchJson<{ success: boolean; message: string }>("/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+  },
 }

@@ -1,4 +1,4 @@
-﻿import { motion, useMotionTemplate, useMotionValue, useSpring } from "framer-motion"
+import { motion, useMotionTemplate, useMotionValue, useSpring } from "framer-motion"
 import { useEffect, useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import GuestDemoButton from "../components/guest/GuestDemoButton"
@@ -93,12 +93,6 @@ const LandingPage = () => {
               Start Screening
               <span className="transition-transform group-hover:translate-x-1">{"->"}</span>
             </motion.button>
-            <Link
-              to="/login"
-              className="rounded-xl border border-slate-300 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-700 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100"
-            >
-              Login
-            </Link>
             <GuestDemoButton onClick={startGuestDemo} />
           </div>
 
@@ -119,16 +113,10 @@ const LandingPage = () => {
           <motion.div animate={{ scale: [1, 1.06, 1], opacity: [0.45, 0.85, 0.45] }} transition={{ duration: 3.5, repeat: Number.POSITIVE_INFINITY }} className="pointer-events-none absolute right-4 top-4 h-3 w-3 rounded-full bg-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.7)]" />
 
           <motion.img src="/illustrations/hero.png" alt="AI assisted autism screening" loading="lazy" animate={{ y: [0, -8, 0] }} transition={{ duration: 8, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }} className="h-64 w-full rounded-2xl border border-slate-200/70 bg-slate-50 object-contain p-2 dark:border-slate-700/70 dark:bg-slate-900/60" />
-          <motion.div animate={{ x: [0, 8, 0], y: [0, -5, 0] }} transition={{ duration: 4, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }} className="absolute left-1/2 top-1/2 h-28 w-24 -translate-x-1/2 -translate-y-1/2 rounded-lg border-2 border-cyan-400/80 shadow-[0_0_24px_rgba(34,211,238,0.45)]">
-            <span className="absolute -top-5 left-0 rounded bg-cyan-500/80 px-1.5 py-0.5 text-[10px] font-semibold text-white">Face Detected</span>
-          </motion.div>
 
           <div className="pointer-events-none absolute left-[40%] top-[43%] h-16 w-16 rounded-full bg-cyan-400/20 blur-xl" />
           <div className="pointer-events-none absolute left-[48%] top-[47%] h-12 w-12 rounded-full bg-emerald-400/20 blur-xl" />
           <div className="pointer-events-none absolute left-[58%] top-[54%] h-20 w-20 rounded-full bg-indigo-400/20 blur-xl" />
-
-          <div className="absolute right-8 bottom-8 rounded-xl border border-white/40 bg-slate-950/70 px-3 py-2 text-xs text-cyan-100">Eye Contact {heroMetrics.eyeContact}% | Attention {heroMetrics.attention}% | Emotion {heroMetrics.emotion}%</div>
-          <div className="absolute left-8 top-8 rounded-xl border border-sky-200/40 bg-white/70 px-3 py-2 text-[11px] text-slate-700 dark:bg-slate-900/65 dark:text-slate-200">AI Detection Overlay Live</div>
         </motion.div>
       </header>
 
@@ -179,8 +167,7 @@ const LandingPage = () => {
         <p className="text-xs tracking-[0.2em] text-sky-600 uppercase dark:text-sky-300">Next Step</p>
         <h3 className="mt-2 text-3xl font-semibold text-slate-900 dark:text-slate-100">Start your early screening journey today.</h3>
         <div className="mt-5 flex flex-wrap justify-center gap-3">
-          <Link to="/login" className="rounded-xl bg-gradient-to-r from-sky-500 to-emerald-500 px-4 py-2 text-sm font-semibold text-white">Create Account</Link>
-          <GuestDemoButton onClick={startGuestDemo} />
+            <GuestDemoButton onClick={startGuestDemo} />
         </div>
       </motion.section>
     </section>

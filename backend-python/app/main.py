@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import base64
 import math
@@ -65,6 +65,12 @@ def decode_image(image_base64: str) -> Optional[np.ndarray]:
 
 
 def extract_cv_adjustments(frame: FrameInput) -> Dict[str, float]:
+    try:
+        from app.ml_analyzer import analyze_frame 
+    except ImportError:
+        # Fallback if analyzer failed to load
+        return {"eye": frame.eye_contact, "attention": frame.attention_span, "emotion": frame.emotion_signals, "gesture": frame.gesture_analysis, "confidence": frame.confidence}
+
     if not frame.image_base64 or cv2 is None:
         return {"eye": frame.eye_contact, "attention": frame.attention_span, "emotion": frame.emotion_signals, "gesture": frame.gesture_analysis, "confidence": frame.confidence}
 
@@ -72,45 +78,16 @@ def extract_cv_adjustments(frame: FrameInput) -> Dict[str, float]:
     if image is None:
         return {"eye": frame.eye_contact, "attention": frame.attention_span, "emotion": frame.emotion_signals, "gesture": frame.gesture_analysis, "confidence": frame.confidence}
 
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    h, w = gray.shape[:2]
-
-    cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
-    cascade = cv2.CascadeClassifier(cascade_path)
-    faces = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=4, minSize=(40, 40))
-
-    face_center_score = 25.0
-    face_size_score = 20.0
-    confidence = 35.0
-
-    if len(faces) > 0:
-        x, y, fw, fh = max(faces, key=lambda face: face[2] * face[3])
-        cx = x + fw / 2.0
-        cy = y + fh / 2.0
-
-        nx = abs(cx - (w / 2.0)) / max(w / 2.0, 1)
-        ny = abs(cy - (h / 2.0)) / max(h / 2.0, 1)
-        face_center_score = clamp(100.0 - (nx * 65.0 + ny * 35.0))
-
-        ratio = (fw * fh) / max(float(w * h), 1.0)
-        face_size_score = clamp(ratio * 700.0)
-        confidence = clamp(70.0 + min(25.0, face_size_score / 4.0))
-
-    blur_var = float(cv2.Laplacian(gray, cv2.CV_64F).var())
-    texture_signal = clamp(blur_var / 8.0)
-
-    eye = clamp(frame.eye_contact * 0.65 + face_center_score * 0.25 + face_size_score * 0.1)
-    attention = clamp(frame.attention_span * 0.6 + face_center_score * 0.25 + texture_signal * 0.15)
-    emotion = clamp(frame.emotion_signals * 0.75 + (100.0 - abs(texture_signal - 35.0)) * 0.25)
-    gesture = clamp(frame.gesture_analysis * 0.7 + texture_signal * 0.3)
-
-    return {
-        "eye": eye,
-        "attention": attention,
-        "emotion": emotion,
-        "gesture": gesture,
-        "confidence": clamp((frame.confidence * 0.6) + (confidence * 0.4)),
+    # Use MediaPipe ML Analyzer
+    frame_data = {
+        "eye_contact": frame.eye_contact,
+        "attention_span": frame.attention_span,
+        "emotion_signals": frame.emotion_signals,
+        "gesture_analysis": frame.gesture_analysis,
+        "confidence": frame.confidence
     }
+    
+    return analyze_frame(image, frame_data)
 
 
 def score_frames(frames: List[FrameInput]) -> Dict[str, object]:
