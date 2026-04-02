@@ -1,4 +1,6 @@
-﻿const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000/api/v1"
+// Dev: Vite proxies /api/v1 → http://127.0.0.1:4000 (no CORS, no IPv6 issues)
+// Prod: set VITE_API_BASE_URL to the deployed backend URL
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
 export const wait = (ms: number) =>
   new Promise<void>((resolve) => {

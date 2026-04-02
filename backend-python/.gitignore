@@ -1,0 +1,43 @@
+# ── Environment secrets ───────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ── Virtual environments ──────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+.env/
+
+# ── Trained ML model artifacts — regenerate with: python train_model.py ──────
+app/asd_model.pkl
+app/asd_scaler.pkl
+app/asd_metadata.pkl
+*.pkl
+
+# ── Notebooks & temp ──────────────────────────────────────────────────────────
+*.ipynb_checkpoints
+.jupyter/
+*.csv
+*.json.backup
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+uvicorn.log
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db

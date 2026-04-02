@@ -23,7 +23,7 @@ import {
   aiEngineUploadVideoStream,
   isAiEngineEnabled,
 } from "./aiEngineGateway.js"
-import { scoreWithPythonLive, scoreWithPythonWindow } from "./pythonMlGateway.js"
+import { scoreWithPythonLive, scoreWithPythonWindow, generatePdfReport, getPySessionData } from "./pythonMlGateway.js"
 
 dotenv.config()
 
@@ -624,6 +624,47 @@ app.get(
       return
     }
     res.json({ success: true, ...session })
+  }),
+)
+
+// PDF report download — proxied from Python ML service
+app.get(
+  "/api/v1/ml/sessions/:sessionId/report",
+  asyncHandler(async (req, res) => {
+    const { sessionId } = req.params
+    const { childName, parentName, parentEmail, parentPhone, city, state } = req.query
+
+    try {
+      const { buffer, contentDisposition } = await generatePdfReport(sessionId, {
+        childName: childName ?? undefined,
+        parentName: parentName ?? undefined,
+        parentEmail: parentEmail ?? undefined,
+        parentPhone: parentPhone ?? undefined,
+        city: city ?? undefined,
+        state: state ?? undefined,
+      })
+
+      res.set("Content-Type", "application/pdf")
+      res.set("Content-Disposition", contentDisposition || `attachment; filename="ManasSaathi_Report_${Date.now()}.pdf"`)
+      res.send(buffer)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "PDF generation failed"
+      res.status(503).json({ success: false, message: msg })
+    }
+  }),
+)
+
+// Session result data from Python ML service (for report page)
+app.get(
+  "/api/v1/ml/sessions/:sessionId/py-data",
+  asyncHandler(async (req, res) => {
+    const { sessionId } = req.params
+    const data = await getPySessionData(sessionId)
+    if (!data) {
+      res.status(404).json({ success: false, message: "Session data not found in ML service." })
+      return
+    }
+    res.json(data)
   }),
 )
 

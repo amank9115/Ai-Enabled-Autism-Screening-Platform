@@ -12,6 +12,7 @@ const ParentDashboardPage = lazy(() => import("../pages/ParentDashboardPage"))
 const DoctorDashboardPage = lazy(() => import("../pages/DoctorDashboardPage"))
 const ChildCaseDetailsPage = lazy(() => import("../pages/ChildCaseDetailsPage"))
 const VideoAnalysisPage = lazy(() => import("../pages/VideoAnalysisPage"))
+const ScreeningReportPage = lazy(() => import("../pages/ScreeningReportPage"))
 const NotFoundPage = lazy(() => import("../pages/NotFoundPage"))
 
 const RouteLoader = () => (
@@ -77,6 +78,14 @@ const AppRouter = () => {
               element={
                 <ProtectedRoute>
                   <VideoAnalysisPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/report/:sessionId"
+              element={
+                <ProtectedRoute role="parent">
+                  <ScreeningReportPage />
                 </ProtectedRoute>
               }
             />

@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import AnalysisOverlay from "../components/ai/AnalysisOverlay"
 import LiveMlPanel from "../components/ai/LiveMlPanel"
 import CameraPreview, { type CameraLiveMetrics } from "../components/camera/CameraPreview"
@@ -12,6 +12,7 @@ const clamp = (value: number) => Math.max(0, Math.min(100, Math.round(value)))
 
 const LiveScreeningPage = () => {
   const { activeProfile, addSessionForActiveProfile, addRecordingForActiveProfile, raiseEmergencyAlert } = useScreening()
+  const navigate = useNavigate()
 
   const [metrics, setMetrics] = useState<CameraLiveMetrics>({
     eyeContact: 70,
@@ -161,7 +162,12 @@ const LiveScreeningPage = () => {
         emotionSignals: clamp(result.featureAverages.emotionSignals),
         gestureAnalysis: clamp(result.featureAverages.gestureAnalysis),
       }))
-      setAnalysisStatus(`ML analysis complete (${result.riskLabel} risk)`)
+      setAnalysisStatus(`ML analysis complete (${result.riskLabel} risk) — building report…`)
+
+      // Navigate to report page using session ID from ML result
+      const derivedSessionKey = `${activeProfile.childName}-${activeProfile.parentEmail}`
+      const reportSessionId = result.sessionId ?? derivedSessionKey
+      setTimeout(() => navigate(`/report/${encodeURIComponent(reportSessionId)}`), 800)
     } catch (error) {
       setAnalysisStatus(error instanceof Error ? error.message : "ML analysis failed")
     } finally {
