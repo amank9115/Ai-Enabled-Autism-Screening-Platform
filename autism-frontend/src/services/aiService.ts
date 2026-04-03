@@ -1,4 +1,4 @@
-﻿import { fetchJson, wait } from "../api/client"
+import { fetchJson, wait } from "../api/client"
 import { liveMetricSeed } from "../data/mockPlatformData"
 import type { BehaviorMetric } from "../types/platform"
 
@@ -92,10 +92,10 @@ export type LiveCameraMlResult = {
   policy: string
 }
 
-export const runCameraMlScreening = async (frames: CameraMlFrame[], userId?: string) => {
+export const runCameraMlScreening = async (frames: CameraMlFrame[], userId?: string, childInfo?: any) => {
   return fetchJson<CameraMlResult>("/ml/camera-screening", {
     method: "POST",
-    body: JSON.stringify({ frames, userId }),
+    body: JSON.stringify({ frames, userId, childInfo }),
   })
 }
 

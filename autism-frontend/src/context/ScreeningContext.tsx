@@ -1,4 +1,4 @@
-﻿import { createContext, useContext, useMemo, useState, type ReactNode } from "react"
+import { createContext, useContext, useMemo, useState, type ReactNode } from "react"
 
 export type ChildProfileForm = {
   childName: string
@@ -81,7 +81,7 @@ type ScreeningContextValue = {
   }) => SessionRecording | null
   updateRecordingNotes: (recordingId: string, notes: string) => void
   updateDoctorNotes: (caseId: string, notes: string) => void
-  addSessionForActiveProfile: (riskScore: number) => string | null
+  addSessionForActiveProfile: (payload: { riskScore: number; riskLabel: string; featureAverages: any; recommendations?: string[] }) => string | null
 }
 
 const initialCases: ChildCaseRecord[] = []
@@ -142,7 +142,7 @@ export const ScreeningProvider = ({ children }: { children: ReactNode }) => {
       updateDoctorNotes: (caseId, notes) => {
         setCaseRecords((current) => current.map((item) => (item.id === caseId ? { ...item, doctorNotes: notes } : item)))
       },
-      addSessionForActiveProfile: (riskScore) => {
+      addSessionForActiveProfile: (payload) => {
         if (!activeProfile) return null
 
         const sessionId = `S-${Math.floor(1000 + Math.random() * 9000)}`
@@ -153,15 +153,15 @@ export const ScreeningProvider = ({ children }: { children: ReactNode }) => {
         const record: ChildCaseRecord = {
           id: caseId,
           profile: activeProfile,
-          riskScore,
-          sessionHistory: [{ id: sessionId, date, duration: "11m", riskScore }],
+          riskScore: payload.riskScore,
+          sessionHistory: [{ id: sessionId, date, duration: "11m", riskScore: payload.riskScore }],
           metrics: {
-            eyeContactScore: Math.max(20, 100 - riskScore + 8),
-            attentionLevel: Math.max(18, 100 - riskScore + 4),
-            emotionPattern: riskScore > 60 ? "High variability" : "Moderately stable",
-            behaviorIndicators: riskScore > 60 ? ["Reduced eye contact", "Increased response delay"] : ["Improving shared attention"],
+            eyeContactScore: payload.featureAverages?.eyeContact ?? 0,
+            attentionLevel: payload.featureAverages?.attentionSpan ?? 0,
+            emotionPattern: `${payload.featureAverages?.emotionSignals ?? 0}% stable`,
+            behaviorIndicators: payload.recommendations && payload.recommendations.length > 0 ? payload.recommendations.slice(0, 2) : [payload.riskLabel === "high" ? "Elevated risk pattern detected" : "Typical screening pattern"],
           },
-          summary: riskScore > 60 ? "Escalation suggested due to elevated risk pattern." : "Session captured expected developmental variation.",
+          summary: payload.riskLabel === "high" ? "High risk detected by ML screening. Review recommended." : "Session captured within normal variance.",
           doctorNotes: "",
         }
 

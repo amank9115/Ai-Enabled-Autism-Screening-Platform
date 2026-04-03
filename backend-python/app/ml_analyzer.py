@@ -9,7 +9,7 @@ except ImportError:
     cv2 = None
     mp = None
 
-if mp is not None:
+if mp is not None and hasattr(mp, 'solutions'):
     mp_face_mesh = mp.solutions.face_mesh
     mp_hands = mp.solutions.hands
     
@@ -50,7 +50,7 @@ def analyze_frame(image: np.ndarray, frame_data: Dict[str, Any]) -> Dict[str, fl
         "confidence": frame_data.get("confidence", 70.0)
     }
 
-    if cv2 is None or mp is None or image is None:
+    if cv2 is None or mp is None or image is None or face_mesh is None or hands is None:
         return default_scores
 
     h, w = image.shape[:2]

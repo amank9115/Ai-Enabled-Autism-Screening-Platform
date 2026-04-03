@@ -50,23 +50,21 @@ METADATA_OUTPUT = os.path.join(os.path.dirname(__file__), "app", "asd_metadata.p
 
 def download_dataset() -> tuple[pd.DataFrame, pd.Series]:
     """
-    Downloads UCI dataset ID 419: Autistic Spectrum Disorder Screening Data for Children
-    This dataset contains 292 instances of children's AQ-10 behavioral screenings.
-    Data is PUBLIC research data from Faisal Thabtah (2017), hosted on UCI ML Repository.
+    Loads the provided Autism Data from the backend/ml-data directory.
     """
-    print("\n[1/5] Downloading UCI ASD Children Screening Dataset...")
-    print("      Source: https://archive.ics.uci.edu/dataset/419")
-    print("      This is open academic research data — no personal data required.\n")
+    print("\n[1/5] Loading provided ASD Dataset...")
+    local_path = os.path.join(os.path.dirname(__file__), "..", "backend", "ml-data", "Autism_Data.arff")
+    print(f"      Source: {local_path}")
 
     try:
-        dataset = fetch_ucirepo(id=419)
-        X = dataset.data.features
-        y = dataset.data.targets
+        df = pd.read_csv(local_path, na_values="?")
+        X = df.drop(columns=["Class/ASD"])
+        y = df[["Class/ASD"]]
         print(f"      ✓ Dataset loaded: {X.shape[0]} rows × {X.shape[1]} features")
         print(f"      ✓ Target column: {y.columns.tolist()}")
         return X, y
     except Exception as e:
-        print(f"[WARN] Could not fetch from UCI ({e}). Using embedded fallback dataset...")
+        print(f"[WARN] Could not load local data ({e}). Using embedded fallback dataset...")
         return _generate_fallback_dataset()
 
 

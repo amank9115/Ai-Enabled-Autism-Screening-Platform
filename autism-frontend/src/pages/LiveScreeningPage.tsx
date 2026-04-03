@@ -26,6 +26,7 @@ const LiveScreeningPage = () => {
   const [sessionSaved, setSessionSaved] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
   const [analysisStatus, setAnalysisStatus] = useState("Live analysis waiting for camera...")
+  const [mlResult, setMlResult] = useState<{ riskScore: number; riskLabel: string; recommendations?: string[] } | null>(null)
 
   const liveFramesRef = useRef<CameraMlFrame[]>([])
   const frameIndexRef = useRef(0)
@@ -33,9 +34,10 @@ const LiveScreeningPage = () => {
   const lastInferAtRef = useRef(0)
 
   const riskSignal = useMemo(() => {
+    if (mlResult) return mlResult.riskScore
     const protective = (metrics.eyeContact + metrics.attention + metrics.emotionSignals + metrics.gestureAnalysis) / 4
     return Math.max(1, Math.min(99, 100 - Math.round(protective)))
-  }, [metrics])
+  }, [metrics, mlResult])
 
   const severeRisk = riskSignal >= 60
 
@@ -67,7 +69,12 @@ const LiveScreeningPage = () => {
   }
 
   const saveSession = () => {
-    const id = addSessionForActiveProfile(riskSignal)
+    const id = addSessionForActiveProfile({
+      riskScore: mlResult?.riskScore ?? riskSignal,
+      riskLabel: mlResult?.riskLabel ?? (severeRisk ? "high" : "low"),
+      featureAverages: metrics,
+      recommendations: mlResult?.recommendations
+    })
     if (id) setSessionSaved(true)
   }
 
@@ -116,6 +123,11 @@ const LiveScreeningPage = () => {
           emotionSignals: clamp(result.featureAverages.emotionSignals),
           gestureAnalysis: clamp(result.featureAverages.gestureAnalysis),
         }))
+        setMlResult({
+          riskScore: result.riskScore,
+          riskLabel: result.riskLabel,
+          recommendations: result.recommendations,
+        })
         setAnalysisStatus(`Live ML window ${result.windowSize} frames (${result.riskLabel} risk)`)
       })
       .catch((error) => {
@@ -127,18 +139,6 @@ const LiveScreeningPage = () => {
   }
 
   const onRecordingComplete = async (payload: { videoUrl: string; durationSec: number }) => {
-    addRecordingForActiveProfile({
-      riskScore: riskSignal,
-      durationSec: payload.durationSec,
-      videoUrl: payload.videoUrl,
-      metrics: {
-        eyeContact: metrics.eyeContact,
-        attention: metrics.attention,
-        emotionStability: metrics.emotionSignals,
-        gestureDetection: metrics.gestureAnalysis,
-      },
-    })
-
     const minFrames = 12
     const fallbackFrames: CameraMlFrame[] = Array.from({ length: minFrames }, () => ({
       eyeContact: metrics.eyeContact,
@@ -154,7 +154,21 @@ const LiveScreeningPage = () => {
       setAnalyzing(true)
       setAnalysisStatus("Running ML analysis on recorded frames...")
 
-      const result = await runCameraMlScreening(frames)
+      const derivedSessionKey = `${activeProfile.childName}-${activeProfile.parentEmail}`
+      const result = await runCameraMlScreening(frames, derivedSessionKey, activeProfile)
+      
+      addRecordingForActiveProfile({
+        riskScore: result.riskScore,
+        durationSec: payload.durationSec,
+        videoUrl: payload.videoUrl,
+        metrics: {
+          eyeContact: result.featureAverages.eyeContact,
+          attention: result.featureAverages.attentionSpan,
+          emotionStability: result.featureAverages.emotionSignals,
+          gestureDetection: result.featureAverages.gestureAnalysis,
+        },
+      })
+
       setMetrics((current) => ({
         ...current,
         eyeContact: clamp(result.featureAverages.eyeContact),
@@ -162,10 +176,13 @@ const LiveScreeningPage = () => {
         emotionSignals: clamp(result.featureAverages.emotionSignals),
         gestureAnalysis: clamp(result.featureAverages.gestureAnalysis),
       }))
+      setMlResult({
+        riskScore: result.riskScore,
+        riskLabel: result.riskLabel,
+        recommendations: result.recommendations,
+      })
       setAnalysisStatus(`ML analysis complete (${result.riskLabel} risk) — building report…`)
 
-      // Navigate to report page using session ID from ML result
-      const derivedSessionKey = `${activeProfile.childName}-${activeProfile.parentEmail}`
       const reportSessionId = result.sessionId ?? derivedSessionKey
       setTimeout(() => navigate(`/report/${encodeURIComponent(reportSessionId)}`), 800)
     } catch (error) {

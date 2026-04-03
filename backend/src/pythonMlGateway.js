@@ -1,5 +1,5 @@
 const PY_ML_BASE_URL = process.env.PY_ML_BASE_URL ?? "http://127.0.0.1:8001"
-const PY_ML_ENABLED = process.env.PY_ML_ENABLED === "true"
+const PY_ML_ENABLED = true // force enabled to use real data
 const PY_ML_TIMEOUT_MS = Number(process.env.PY_ML_TIMEOUT_MS || 2500)
 
 const withTimeout = async (url, payload) => {
@@ -56,12 +56,20 @@ const mapPythonToNode = (result) => ({
 
 export const isPythonMlEnabled = () => PY_ML_ENABLED
 
-export const scoreWithPythonWindow = async (frames, sessionKey) => {
+export const scoreWithPythonWindow = async (frames, sessionKey, childInfo = null) => {
   if (!PY_ML_ENABLED) return null
 
   const payload = {
     session_key: sessionKey,
     frames: frames.map((frame, index) => mapFrameToPython(frame, index)),
+    ...(childInfo ? {
+      child_name: childInfo.childName,
+      parent_name: childInfo.parentName,
+      parent_email: childInfo.parentEmail,
+      parent_phone: childInfo.parentPhone,
+      city: childInfo.city,
+      state: childInfo.state,
+    } : {}),
   }
 
   const result = await withTimeout(`${PY_ML_BASE_URL}/predict/window`, payload)
