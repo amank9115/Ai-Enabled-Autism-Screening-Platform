@@ -1,6 +1,5 @@
 import { motion, useMotionTemplate, useMotionValue, useSpring } from "framer-motion"
-import { useEffect, useState } from "react"
-import { Link, useNavigate } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 import GuestDemoButton from "../components/guest/GuestDemoButton"
 import { useAuth } from "../context/AuthContext"
 
@@ -31,20 +30,6 @@ const LandingPage = () => {
   const smoothX = useSpring(cursorX, { stiffness: 120, damping: 20 })
   const smoothY = useSpring(cursorY, { stiffness: 120, damping: 20 })
   const glow = useMotionTemplate`radial-gradient(220px circle at ${smoothX}px ${smoothY}px, rgba(14,165,233,0.2), transparent 70%)`
-
-  const [heroMetrics, setHeroMetrics] = useState({ eyeContact: 74, attention: 81, emotion: 76 })
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setHeroMetrics((current) => ({
-        eyeContact: Math.max(60, Math.min(92, current.eyeContact + Math.round(Math.random() * 8 - 4))),
-        attention: Math.max(62, Math.min(94, current.attention + Math.round(Math.random() * 8 - 4))),
-        emotion: Math.max(58, Math.min(90, current.emotion + Math.round(Math.random() * 8 - 4))),
-      }))
-    }, 1800)
-
-    return () => clearInterval(timer)
-  }, [])
 
   const startScreening = (event?: React.MouseEvent<HTMLButtonElement>) => {
     event?.preventDefault()
